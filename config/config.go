@@ -1,7 +1,7 @@
 package config
 
 import (
-	"errors"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -23,14 +23,14 @@ func LoadEnv() {
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.New("Failed to read the file")
+		return nil, fmt.Errorf("read config file %s failed: %w", path, err)
 	}
 
 	var cfg Config
 
 	err = yaml.Unmarshal(data, &cfg)
 	if err != nil {
-		return nil, errors.New("Unknown file data")
+		return nil, fmt.Errorf("parse config file %s failed: %w", path, err)
 	}
 
 	return &cfg, nil

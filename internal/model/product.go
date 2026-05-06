@@ -13,8 +13,8 @@ type Product struct {
 	Description string    `gorm:"type:varchar(500);not null;default:''" json:"description"`
 	PriceFen    int64     `gorm:"column:price_fen;type:bigint;not null" json:"price_fen"`
 	Status      int8      `gorm:"type:tinyint;not null;default:2;index" json:"status"`
-	CreatedAt   time.Time `json:"created_At"`
-	UpdatedAt   time.Time `json:"updated_At"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (Product) TableName() string {
