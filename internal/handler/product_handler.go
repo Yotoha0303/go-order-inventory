@@ -4,6 +4,7 @@ import (
 	"errors"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
+	"go-order-inventory/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,11 +20,10 @@ func CreateProduct(c *gin.Context) {
 		return
 	}
 
-	// err := service.CreateProduct(req)
-	// if err != nil {
-	// 	response.Error(c, 500, 1002, err)
-	// 	return
-	// }
+	if err := service.CreateProduct(req); err != nil {
+		response.Fail(c, 500, 1003, err.Error())
+		return
+	}
 
 	response.Success(c, nil)
 }

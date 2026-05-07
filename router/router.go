@@ -10,6 +10,7 @@ func SetupRouters() *gin.Engine {
 	r := gin.Default()
 
 	registerHealthRouters(r)
+	registerAPIRouter(r)
 	return r
 }
 
