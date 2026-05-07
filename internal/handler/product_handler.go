@@ -5,12 +5,9 @@ import (
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
-)
-
-var (
-	ErrProductNotFound = errors.New("product not found")
 )
 
 func CreateProduct(c *gin.Context) {
@@ -20,12 +17,20 @@ func CreateProduct(c *gin.Context) {
 		return
 	}
 
-	if err := service.CreateProduct(req); err != nil {
-		response.Fail(c, 500, 1003, err.Error())
+	product, err := service.CreateProduct(req)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidProductName), errors.Is(err, service.ErrInvalidProductPrice), errors.Is(err, service.ErrInvalidProductDescription):
+			response.Fail(c, http.StatusBadRequest, 1002, err.Error())
+			return
+		default:
+			response.Fail(c, http.StatusInternalServerError, 1003, "创建商品失败")
+		}
 		return
 	}
 
-	response.Success(c, nil)
+	response.Success(c, product)
 }
 
 func ListProducts(c *gin.Context) {
