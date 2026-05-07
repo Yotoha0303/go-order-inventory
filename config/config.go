@@ -13,7 +13,7 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Config int `yaml:"port"`
+	Port int `yaml:"port"`
 }
 
 func LoadEnv() {

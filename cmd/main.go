@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("load config failed:%v", err)
 	}
 
-	addr := fmt.Sprintf(":%d", cfg.Server.Config)
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	fmt.Println("server starting at", addr)
 
 	r := router.SetupRouters()
