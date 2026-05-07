@@ -1,6 +1,8 @@
 package router
 
 import (
+	"go-order-inventory/internal/handler"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,23 +24,26 @@ func registerHealthRouters(r *gin.Engine) {
 }
 
 func registerAPIRouter(rg *gin.Engine) {
-	// apiV1 := rg.Group("/api/v1")
-	// registerProductAPIRouter(rg)
-	// registerInventoryAPIRouter(rg)
+	apiV1 := rg.Group("/api/v1")
+
+	registerProductAPIRouter(apiV1)
+	registerInventoryAPIRouter(apiV1)
 }
 
-func registerProductAPIRouter(rg *gin.Engine) {
-	// POST /api/v1/products
-	// GET /api/v1/products
-	// GET /api/v1/products/:id
-	// PATCH /api/v1/products/:id/on-sale
-	// PATCH /api/v1/products/:id/off-sale
+func registerProductAPIRouter(rg *gin.RouterGroup) {
+
+	rg.POST("/products", handler.CreateProduct)
+	rg.GET("/products", handler.ListProducts)
+	rg.GET("/products/:id", handler.GetProductByID)
+	rg.PATCH("/products/:id/on-sale", handler.OnSaleProduct)
+	rg.PATCH("/products/:id/off-sale", handler.OffSaleProduct)
 
 }
 
-func registerInventoryAPIRouter(rg *gin.Engine) {
-	// POST /api/v1/inventory/init
-	// POST /api/v1/inventory/add
-	// GET /api/v1/inventory/products/:product_id
-	// GET /api/v1/stock-logs
+func registerInventoryAPIRouter(rg *gin.RouterGroup) {
+
+	rg.POST("/inventory/init", handler.InitInventory)
+	rg.POST("/inventory/add", handler.AddInventory)
+	rg.GET("/inventory/products/:product_id", handler.GetInventoryByProductID)
+	rg.GET("/stock-logs", handler.ListStockLogs)
 }
