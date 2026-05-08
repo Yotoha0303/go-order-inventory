@@ -1,4 +1,4 @@
-go-order-inventory (轻量级订单库存管理系统项目)
+# go-order-inventory (轻量级订单库存管理系统项目)
 
 # 1.项目简介
 
