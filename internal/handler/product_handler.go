@@ -5,6 +5,7 @@ import (
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -63,10 +64,10 @@ func GetProductByID(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, 404, 1002, err.Error())
+			response.Fail(c, http.StatusNotFound, 1002, err.Error())
 			return
 		default:
-			response.Fail(c, 500, 1003, "查询商品失败")
+			response.Fail(c, http.StatusInternalServerError, 1003, "查询商品失败")
 		}
 		return
 	}

@@ -18,10 +18,7 @@ var (
 	ErrProductNotFound           = errors.New("商品信息不存在")
 	ErrInvalidProductID          = errors.New("无效的商品ID")
 	ErrProductOnSaleFailed       = errors.New("上架商品失败")
-	ErrProductAlreadyOnSale      = errors.New("商品已上架")
 	ErrProductOffSaleFailed      = errors.New("下架商品失败")
-	ErrProductAlreadyOffSale     = errors.New("商品已下架")
-	ErrInvalidProductStatus      = errors.New("无效的商品状态")
 )
 
 func CreateProduct(req request.CreateProductRequest) (*model.Product, error) {
@@ -84,6 +81,10 @@ func OnSaleProduct(id int64) error {
 
 	}
 
+	if product.Status == model.ProductStatusOnSale {
+		return nil
+	}
+
 	if err := dao.UpdateProductStatus(global.DB, product.ID, model.ProductStatusOnSale); err != nil {
 		return ErrProductOnSaleFailed
 	}
@@ -102,6 +103,10 @@ func OffSaleProduct(id int64) error {
 		}
 		return err
 
+	}
+
+	if product.Status == model.ProductStatusOffSale {
+		return nil
 	}
 
 	if err := dao.UpdateProductStatus(global.DB, product.ID, model.ProductStatusOffSale); err != nil {
