@@ -5,7 +5,6 @@ import (
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -23,10 +22,10 @@ func CreateProduct(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidProductName), errors.Is(err, service.ErrInvalidProductPrice), errors.Is(err, service.ErrInvalidProductDescription):
-			response.Fail(c, http.StatusBadRequest, 1002, err.Error())
+			response.Fail(c, 401, 1002, err.Error())
 			return
 		default:
-			response.Fail(c, http.StatusInternalServerError, 1003, "创建商品失败")
+			response.Fail(c, 500, 1003, "创建商品失败")
 		}
 		return
 	}
@@ -35,16 +34,34 @@ func CreateProduct(c *gin.Context) {
 }
 
 func ListProducts(c *gin.Context) {
+	var req request.ListProductsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Fail(c, 400, 1001, "参数错误")
+		return
+	}
+	// statusStr := c.Query("status")
+	// var status int64
+	// if statusStr != "" {
+	// 	var err error
+	// 	status, err = strconv.ParseInt(statusStr, 10, 8)
+	// 	if err != nil {
+	// 		response.Fail(c, 400, 1001, service.ErrInvalidProductStatus.Error())
+	// 		return
+	// 	}
+	// }
 
-	products, err := service.ListProducts()
+	// var products []*model.Product
+	// var err error
+
+	// if status == 0 {
+	// 	products, err = service.ListProducts(0)
+	// } else {
+	// 	products, err = service.ListProducts(int8(status))
+	// }
+	products, err := service.ListProducts(&req.Status)
+
 	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, 400, 1001, err.Error())
-			return
-		default:
-			response.Fail(c, http.StatusInternalServerError, 1502, "查询商品列表失败")
-		}
+		response.Fail(c, 500, 1003, err.Error())
 		return
 	}
 
@@ -53,7 +70,7 @@ func ListProducts(c *gin.Context) {
 
 func GetProductByID(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || id <= 0 {
 		response.Fail(c, 400, 1001, service.ErrInvalidProductID.Error())
 		return
 	}
@@ -61,10 +78,10 @@ func GetProductByID(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, 401, 1002, err.Error())
+			response.Fail(c, 404, 1002, err.Error())
 			return
 		default:
-			response.Fail(c, 401, 1003, "查询商品失败")
+			response.Fail(c, 500, 1003, "查询商品失败")
 		}
 		return
 	}
@@ -74,17 +91,16 @@ func GetProductByID(c *gin.Context) {
 func OnSaleProduct(c *gin.Context) {
 
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || id <= 0 {
 		response.Fail(c, 400, 1001, service.ErrInvalidProductID.Error())
 		return
 	}
 	if err := service.OnSaleProduct(id); err != nil {
 		switch {
 		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, 400, 1002, err.Error())
-		case errors.Is(err, service.ErrProductOnSaleFailed),
-			errors.Is(err, service.ErrProductAlreadyOnSale):
-			response.Fail(c, 400, 1001, err.Error())
+			response.Fail(c, 404, 1001, err.Error())
+		case errors.Is(err, service.ErrProductOnSaleFailed):
+			response.Fail(c, 405, 1002, err.Error())
 		default:
 			response.Fail(c, 500, 1003, "上架商品失败")
 		}
@@ -95,19 +111,18 @@ func OnSaleProduct(c *gin.Context) {
 
 func OffSaleProduct(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || id <= 0 {
 		response.Fail(c, 400, 1001, service.ErrInvalidProductID.Error())
 		return
 	}
 	if err := service.OffSaleProduct(id); err != nil {
 		switch {
 		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, 400, 1002, err.Error())
-		case errors.Is(err, service.ErrProductOffSaleFailed),
-			errors.Is(err, service.ErrProductAlreadyOffSale):
-			response.Fail(c, 400, 1001, err.Error())
+			response.Fail(c, 404, 1002, err.Error())
+		case errors.Is(err, service.ErrProductOffSaleFailed):
+			response.Fail(c, 405, 1003, err.Error())
 		default:
-			response.Fail(c, 500, 1003, "下架商品失败")
+			response.Fail(c, 500, 1004, "下架商品失败")
 		}
 		return
 	}

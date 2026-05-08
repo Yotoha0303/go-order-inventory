@@ -1,8 +1,9 @@
 @baseUrl = http://localhost:8082
 
-### 使用方法
-### 安装VScode插件 `REST Client`
-###	在HTTP文件中编写请求，点击 `Send Request` 按钮发送请求并查看响应结果
+### 使用方法:
+### 1.安装VScode REST Client 插件
+### 2.启动服务
+###	3.点击每个请求上方的 Send Request
 
 ### 1. 健康检查
 GET {{baseUrl}}/ping
@@ -65,3 +66,27 @@ Content-Type: application/json
   "description": "名称只有空格",
   "price_fen": 1999
 }
+
+### 8. 查询商品列表 - 全部
+GET {{baseUrl}}/api/v1/products
+
+### 9. 查询商品列表 - 上架
+GET {{baseUrl}}/api/v1/products?status=1
+
+### 10. 查询商品列表 - 下架
+GET {{baseUrl}}/api/v1/products?status=2
+
+### 11. 查询商品详情 - 正常
+GET {{baseUrl}}/api/v1/products/1
+
+### 12. 查询商品详情 - 非法 ID
+GET {{baseUrl}}/api/v1/products/abc
+
+### 13. 查询商品详情 - 不存在
+GET {{baseUrl}}/api/v1/products/999999
+
+### 14. 商品上架
+PATCH {{baseUrl}}/api/v1/products/1/on-sale
+
+### 15. 商品下架
+PATCH {{baseUrl}}/api/v1/products/1/off-sale
