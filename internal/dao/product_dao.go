@@ -10,20 +10,11 @@ func CreateProduct(db *gorm.DB, product *model.Product) error {
 	return db.Create(product).Error
 }
 
-func ListProducts(status *int8, db *gorm.DB) ([]*model.Product, error) {
+func ListProducts(status int8, db *gorm.DB) ([]*model.Product, error) {
 	var products []*model.Product
-	// if status != 0 {
-	// 	return products, db.Find(&products).Error
-	// }
-	// return products, db.Where("status = ?", status).Find(&products).Error
 
-	query := db.Model(&model.Product{})
+	err := db.Model(&model.Product{}).Where("status = ?", status).Order("id DESC").Find(&products).Error
 
-	if status != nil {
-		query = query.Where("status = ?", *status)
-	}
-
-	err := query.Order("id desc").Find(&products).Error
 	if err != nil {
 		return nil, err
 	}

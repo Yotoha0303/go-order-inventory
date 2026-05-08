@@ -34,31 +34,8 @@ func CreateProduct(c *gin.Context) {
 }
 
 func ListProducts(c *gin.Context) {
-	var req request.ListProductsRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Fail(c, 400, 1001, "参数错误")
-		return
-	}
-	// statusStr := c.Query("status")
-	// var status int64
-	// if statusStr != "" {
-	// 	var err error
-	// 	status, err = strconv.ParseInt(statusStr, 10, 8)
-	// 	if err != nil {
-	// 		response.Fail(c, 400, 1001, service.ErrInvalidProductStatus.Error())
-	// 		return
-	// 	}
-	// }
 
-	// var products []*model.Product
-	// var err error
-
-	// if status == 0 {
-	// 	products, err = service.ListProducts(0)
-	// } else {
-	// 	products, err = service.ListProducts(int8(status))
-	// }
-	products, err := service.ListProducts(&req.Status)
+	products, err := service.ListProducts()
 
 	if err != nil {
 		response.Fail(c, 500, 1003, err.Error())

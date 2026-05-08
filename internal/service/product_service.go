@@ -54,12 +54,8 @@ func CreateProduct(req request.CreateProductRequest) (*model.Product, error) {
 	return product, nil
 }
 
-func ListProducts(status *int8) ([]*model.Product, error) {
-	products, err := dao.ListProducts(status, global.DB)
-	if err != nil {
-		return nil, err
-	}
-	return products, err
+func ListProducts() ([]*model.Product, error) {
+	return dao.ListProducts(model.ProductStatusOffSale, global.DB)
 }
 
 func GetProductByID(id int64) (*model.Product, error) {

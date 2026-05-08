@@ -35,7 +35,6 @@ func registerProductAPIRouter(rg *gin.RouterGroup) {
 
 	rg.POST("/products", handler.CreateProduct)
 	rg.GET("/products", handler.ListProducts)
-	rg.GET("/products?status=:status", handler.ListProducts)
 	rg.GET("/products/:id", handler.GetProductByID)
 	rg.PATCH("/products/:id/on-sale", handler.OnSaleProduct)
 	rg.PATCH("/products/:id/off-sale", handler.OffSaleProduct)
