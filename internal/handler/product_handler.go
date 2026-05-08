@@ -45,10 +45,18 @@ func ListProducts(c *gin.Context) {
 	response.Success(c, products)
 }
 
-func GetProductByID(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+func parsePositiveID(c *gin.Context, paramName string) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param(paramName), 10, 64)
 	if err != nil || id <= 0 {
-		response.Fail(c, 400, 1001, service.ErrInvalidProductID.Error())
+		response.Fail(c, 400, 1001, "无效的商品ID")
+		return 0, false
+	}
+	return id, true
+}
+
+func GetProductByID(c *gin.Context) {
+	id, ok := parsePositiveID(c, "id")
+	if !ok {
 		return
 	}
 	product, err := service.GetProductByID(id)
@@ -67,9 +75,8 @@ func GetProductByID(c *gin.Context) {
 
 func OnSaleProduct(c *gin.Context) {
 
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		response.Fail(c, 400, 1001, service.ErrInvalidProductID.Error())
+	id, ok := parsePositiveID(c, "id")
+	if !ok {
 		return
 	}
 	if err := service.OnSaleProduct(id); err != nil {
@@ -87,9 +94,8 @@ func OnSaleProduct(c *gin.Context) {
 }
 
 func OffSaleProduct(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		response.Fail(c, 400, 1001, service.ErrInvalidProductID.Error())
+	id, ok := parsePositiveID(c, "id")
+	if !ok {
 		return
 	}
 	if err := service.OffSaleProduct(id); err != nil {
