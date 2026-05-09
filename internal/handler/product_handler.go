@@ -46,7 +46,7 @@ func ListProducts(c *gin.Context) {
 	response.Success(c, products)
 }
 
-func parsePositiveID(c *gin.Context, paramName string) (int64, bool) {
+func parsePositiveProductID(c *gin.Context, paramName string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(paramName), 10, 64)
 	if err != nil || id <= 0 {
 		response.Fail(c, 400, 1001, "无效的商品ID")
@@ -56,7 +56,7 @@ func parsePositiveID(c *gin.Context, paramName string) (int64, bool) {
 }
 
 func GetProductByID(c *gin.Context) {
-	id, ok := parsePositiveID(c, "id")
+	id, ok := parsePositiveProductID(c, "id")
 	if !ok {
 		return
 	}
@@ -76,7 +76,7 @@ func GetProductByID(c *gin.Context) {
 
 func OnSaleProduct(c *gin.Context) {
 
-	id, ok := parsePositiveID(c, "id")
+	id, ok := parsePositiveProductID(c, "id")
 	if !ok {
 		return
 	}
@@ -95,7 +95,7 @@ func OnSaleProduct(c *gin.Context) {
 }
 
 func OffSaleProduct(c *gin.Context) {
-	id, ok := parsePositiveID(c, "id")
+	id, ok := parsePositiveProductID(c, "id")
 	if !ok {
 		return
 	}
