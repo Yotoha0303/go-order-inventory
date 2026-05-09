@@ -23,7 +23,7 @@ func CreateProduct(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidProductName), errors.Is(err, service.ErrInvalidProductPrice), errors.Is(err, service.ErrInvalidProductDescription):
-			response.Fail(c, 401, 1002, err.Error())
+			response.Fail(c, http.StatusBadRequest, 1002, err.Error())
 			return
 		default:
 			response.Fail(c, 500, 1003, "创建商品失败")
@@ -87,7 +87,7 @@ func OnSaleProduct(c *gin.Context) {
 		case errors.Is(err, service.ErrProductOnSaleFailed):
 			response.Fail(c, 405, 1002, err.Error())
 		default:
-			response.Fail(c, 500, 1003, "上架商品失败")
+			response.Fail(c, http.StatusInternalServerError, 1003, err.Error())
 		}
 		return
 	}
@@ -102,11 +102,11 @@ func OffSaleProduct(c *gin.Context) {
 	if err := service.OffSaleProduct(id); err != nil {
 		switch {
 		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, 404, 1002, err.Error())
+			response.Fail(c, 404, 1001, err.Error())
 		case errors.Is(err, service.ErrProductOffSaleFailed):
 			response.Fail(c, 405, 1003, err.Error())
 		default:
-			response.Fail(c, 500, 1004, "下架商品失败")
+			response.Fail(c, http.StatusInternalServerError, 1004, err.Error())
 		}
 		return
 	}

@@ -90,3 +90,9 @@ PATCH {{baseUrl}}/api/v1/products/1/on-sale
 
 ### 15. 商品下架
 PATCH {{baseUrl}}/api/v1/products/1/off-sale
+
+### 16. 商品下架 - 非法 ID 
+PATCH {{baseUrl}}/api/v1/products/0/off-sale
+
+### 17. 商品下架 - 不存在
+PATCH {{baseUrl}}/api/v1/products/0/off-sale
