@@ -70,6 +70,3 @@ func GetInventoryByProductID(c *gin.Context) {
 
 	response.Success(c, inventory)
 }
-func ListStockLogs(c *gin.Context) {
-	response.Fail(c, http.StatusNotImplemented, 2001, "接口暂未实现")
-}

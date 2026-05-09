@@ -10,7 +10,10 @@ func CreateStockLog(db *gorm.DB, log *model.StockLog) error {
 	return db.Create(log).Error
 }
 
-func ListStockLogsByProductID(db *gorm.DB, productID int64) ([]*model.StockLog, error) {
+func ListStockLogsByProductID(db *gorm.DB, productID *int64) ([]*model.StockLog, error) {
 	var logs []*model.StockLog
-	return logs, db.Where("product_id = ?", productID).Order("created_at desc").First(&logs).Error
+	if productID == nil || *productID == 0 {
+		return logs, db.Order("created_at desc").Find(&logs).Error
+	}
+	return logs, db.Where("product_id = ?", productID).Order("created_at desc").Find(&logs).Error
 }

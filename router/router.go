@@ -29,6 +29,7 @@ func registerAPIRouter(rg *gin.Engine) {
 
 	registerProductAPIRouter(apiV1)
 	registerInventoryAPIRouter(apiV1)
+	registerStockLogAPIRouter(apiV1)
 }
 
 func registerProductAPIRouter(rg *gin.RouterGroup) {
@@ -46,5 +47,10 @@ func registerInventoryAPIRouter(rg *gin.RouterGroup) {
 	rg.POST("/inventory/init", handler.InitInventory)
 	rg.POST("/inventory/add", handler.AddInventory)
 	rg.GET("/inventory/products/:product_id", handler.GetInventoryByProductID)
+}
+
+func registerStockLogAPIRouter(rg *gin.RouterGroup) {
+
 	rg.GET("/stock-logs", handler.ListStockLogs)
+
 }

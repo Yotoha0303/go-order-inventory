@@ -89,7 +89,7 @@ func AddInventory(req request.AddInventoryRequest) error {
 			return err
 		}
 
-		stockLogs, err := dao.ListStockLogsByProductID(global.DB, req.ProductID)
+		stockLogs, err := dao.ListStockLogsByProductID(global.DB, &req.ProductID)
 		if err != nil {
 			return err
 		}
