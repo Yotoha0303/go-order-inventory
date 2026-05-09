@@ -10,21 +10,21 @@ import (
 )
 
 func ListStockLogs(c *gin.Context) {
-	productID, _ := strconv.ParseInt(c.Query("product_id"), 10, 64)
+	var productID *int64
 
-	if productID <= 0 && c.Query("product_id") != "" {
-		response.Fail(c, http.StatusBadRequest, 2000, "无效的产品ID")
-		return
+	productIDStr := c.Query("product_id")
+	if productIDStr != "" {
+		id, err := strconv.ParseInt(productIDStr, 10, 64)
+		if err != nil || id <= 0 {
+			response.Fail(c, http.StatusBadRequest, 2000, "无效的产品ID")
+			return
+		}
+		productID = &id
 	}
 
-	stockLogs, err := service.ListStockLogsByProductID(&productID)
+	stockLogs, err := service.ListStockLogsByProductID(productID)
 	if err != nil {
-		switch {
-		case err == service.ErrStockLogNotFound:
-			response.Fail(c, http.StatusNotFound, 2002, err.Error())
-		default:
-			response.Fail(c, http.StatusInternalServerError, 2001, "查询库存日志失败")
-		}
+		response.Fail(c, http.StatusInternalServerError, 2001, "查询库存日志失败")
 		return
 	}
 	response.Success(c, stockLogs)

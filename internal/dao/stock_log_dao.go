@@ -15,5 +15,5 @@ func ListStockLogsByProductID(db *gorm.DB, productID *int64) ([]*model.StockLog,
 	if productID == nil || *productID == 0 {
 		return logs, db.Order("created_at desc").Find(&logs).Error
 	}
-	return logs, db.Where("product_id = ?", productID).Order("created_at desc").Find(&logs).Error
+	return logs, db.Where("product_id = ?", *productID).Order("created_at desc").Find(&logs).Error
 }

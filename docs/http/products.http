@@ -135,3 +135,38 @@ GET {{baseUrl}}/api/v1/inventory/abc
 
 ### 22. 获取库存信息 - 不存在的 product_id
 GET {{baseUrl}}/api/v1/inventory/9999
+
+### 23. 增加库存 - 正常
+POST {{baseUrl}}/api/v1/inventory/add
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "quantity": 20
+}
+
+### 24. 增加库存 - quantity = 0，应返回参数错误
+POST {{baseUrl}}/api/v1/inventory/add
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "quantity": 0
+}
+
+### 25. 增加库存 - 未初始化库存，应失败
+POST {{baseUrl}}/api/v1/inventory/add
+Content-Type: application/json
+
+{
+  "product_id": 999999,
+  "quantity": 20
+}
+### 26. 查询全部库存流水
+GET {{baseUrl}}/api/v1/stock-logs
+
+### 27. 查询指定商品库存流水
+GET {{baseUrl}}/api/v1/stock-logs?product_id=1
+
+### 28. 查询库存流水 - 非法 product_id
+GET {{baseUrl}}/api/v1/stock-logs?product_id=0

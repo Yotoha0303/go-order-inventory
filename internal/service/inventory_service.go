@@ -40,7 +40,7 @@ func InitInventory(req *request.InitInventoryRequest) error {
 			StockQuantity: *req.StockQuantity,
 		}
 
-		if err := dao.InitInventory(global.DB, inventory); err != nil {
+		if err := dao.InitInventory(tx, inventory); err != nil {
 			return ErrInitInventoryFailed
 		}
 
@@ -53,7 +53,7 @@ func InitInventory(req *request.InitInventoryRequest) error {
 			Remark:         "初始化库存:" + product.Name,
 		}
 
-		if err := dao.CreateStockLog(global.DB, log); err != nil {
+		if err := dao.CreateStockLog(tx, log); err != nil {
 			return ErrCreateStockLogFailed
 		}
 		return nil
@@ -77,11 +77,16 @@ func AddInventory(req request.AddInventoryRequest) error {
 	}
 
 	return global.DB.Transaction(func(tx *gorm.DB) error {
-		if err := dao.UpdateInventory(global.DB, req.ProductID, req.Quantity); err != nil {
+
+		inventory, err := dao.GetInventoryByProductID(tx, req.ProductID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrInventoryNotFound
+			}
 			return err
 		}
 
-		product, err := dao.GetProductByID(global.DB, req.ProductID)
+		product, err := dao.GetProductByID(tx, req.ProductID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrProductNotFound
@@ -89,21 +94,23 @@ func AddInventory(req request.AddInventoryRequest) error {
 			return err
 		}
 
-		stockLogs, err := dao.ListStockLogsByProductID(global.DB, &req.ProductID)
-		if err != nil {
+		beforeQuantity := inventory.StockQuantity
+		afterQuantity := beforeQuantity + req.Quantity
+
+		if err := dao.UpdateInventory(tx, req.ProductID, afterQuantity); err != nil {
 			return err
 		}
 
 		log := &model.StockLog{
 			ProductID:      req.ProductID,
-			BeforeQuantity: stockLogs[0].AfterQuantity,
-			AfterQuantity:  req.Quantity + stockLogs[0].AfterQuantity,
+			BeforeQuantity: beforeQuantity,
+			AfterQuantity:  afterQuantity,
 			ChangeQuantity: req.Quantity,
 			BizType:        model.StockBizManualAdd,
 			Remark:         "手动入库：补充" + product.Name,
 		}
 
-		err = dao.CreateStockLog(global.DB, log)
+		err = dao.CreateStockLog(tx, log)
 		if err != nil {
 			return ErrCreateStockLogFailed
 		}

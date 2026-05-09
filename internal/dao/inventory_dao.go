@@ -16,6 +16,16 @@ func GetInventoryByProductID(db *gorm.DB, productID int64) (*model.Inventory, er
 }
 
 func UpdateInventory(db *gorm.DB, productID int64, stockQuantity int64) error {
-	var inventory *model.Inventory
-	return db.Model(&inventory).Where("product_id = ?", productID).Update("stock_quantity", stockQuantity).Error
+
+	result := db.Model(&model.Inventory{}).Where("product_id = ?", productID).Update("stock_quantity", stockQuantity)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }

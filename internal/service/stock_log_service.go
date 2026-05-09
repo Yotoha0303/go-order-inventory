@@ -5,8 +5,6 @@ import (
 	"go-order-inventory/global"
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
-
-	"gorm.io/gorm"
 )
 
 var (
@@ -19,12 +17,5 @@ func CreateStockLog(log *model.StockLog) error {
 }
 
 func ListStockLogsByProductID(productID *int64) ([]*model.StockLog, error) {
-	stockLog, err := dao.ListStockLogsByProductID(global.DB, productID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrStockLogNotFound
-		}
-		return nil, err
-	}
-	return stockLog, err
+	return dao.ListStockLogsByProductID(global.DB, productID)
 }
