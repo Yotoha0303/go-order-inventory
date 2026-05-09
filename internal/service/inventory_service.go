@@ -42,6 +42,20 @@ func InitInventory(req *request.InitInventoryRequest) error {
 		return ErrInitInventoryFailed
 	}
 
+	log := &model.StockLog{
+		ProductID:      product.ID,
+		BeforeQuantity: 0,
+		AfterQuantity:  req.StockQuantity,
+		ChangeQuantity: req.StockQuantity - 0,
+		BizType:        model.StockBizInit,
+		Remark:         "初始化库存:" + string(product.Name),
+	}
+
+	err = dao.CreateStockLog(global.DB, log)
+	if err != nil {
+		return ErrCreateStockLogFailed
+	}
+
 	return nil
 }
 

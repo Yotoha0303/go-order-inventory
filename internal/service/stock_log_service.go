@@ -1,1 +1,16 @@
 package service
+
+import (
+	"errors"
+	"go-order-inventory/global"
+	"go-order-inventory/internal/dao"
+	"go-order-inventory/internal/model"
+)
+
+var (
+	ErrCreateStockLogFailed = errors.New("创建库存日志失败")
+)
+
+func CreateStockLog(log *model.StockLog) error {
+	return dao.CreateStockLog(global.DB, log)
+}
