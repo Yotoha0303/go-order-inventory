@@ -14,3 +14,8 @@ func GetInventoryByProductID(db *gorm.DB, productID int64) (*model.Inventory, er
 	var inventory model.Inventory
 	return &inventory, db.Where("product_id = ?", productID).First(&inventory).Error
 }
+
+func AddInventory(db *gorm.DB, inventory *model.Inventory) error {
+
+	return nil
+}
