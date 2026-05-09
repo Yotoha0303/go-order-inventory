@@ -97,8 +97,8 @@ func AddInventory(req request.AddInventoryRequest) error {
 		log := &model.StockLog{
 			ProductID:      req.ProductID,
 			BeforeQuantity: stockLogs[0].AfterQuantity,
-			AfterQuantity:  req.Quantity,
-			ChangeQuantity: req.Quantity - stockLogs[0].AfterQuantity,
+			AfterQuantity:  req.Quantity + stockLogs[0].AfterQuantity,
+			ChangeQuantity: req.Quantity,
 			BizType:        model.StockBizManualAdd,
 			Remark:         "手动入库：补充" + product.Name,
 		}
