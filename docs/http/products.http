@@ -67,32 +67,26 @@ Content-Type: application/json
   "price_fen": 1999
 }
 
-### 8. 查询商品列表 - 全部
+### 8. 查询商品列表 - 默认查询下架的商品
 GET {{baseUrl}}/api/v1/products
 
-### 9. 查询商品列表 - 上架
-GET {{baseUrl}}/api/v1/products?status=1
-
-### 10. 查询商品列表 - 下架
-GET {{baseUrl}}/api/v1/products?status=2
-
-### 11. 查询商品详情 - 正常
+### 9. 查询商品详情 - 正常
 GET {{baseUrl}}/api/v1/products/1
 
-### 12. 查询商品详情 - 非法 ID
+### 10. 查询商品详情 - 非法 ID
 GET {{baseUrl}}/api/v1/products/abc
 
-### 13. 查询商品详情 - 不存在
+### 11. 查询商品详情 - 不存在
 GET {{baseUrl}}/api/v1/products/999999
 
-### 14. 商品上架
+### 12. 商品上架
 PATCH {{baseUrl}}/api/v1/products/1/on-sale
 
-### 15. 商品下架
+### 13. 商品下架
 PATCH {{baseUrl}}/api/v1/products/1/off-sale
 
-### 16. 商品下架 - 非法 ID 
+### 14. 商品下架 - 非法 ID 
 PATCH {{baseUrl}}/api/v1/products/0/off-sale
 
-### 17. 商品下架 - 不存在
+### 15. 商品下架 - 不存在
 PATCH {{baseUrl}}/api/v1/products/0/off-sale

@@ -49,7 +49,7 @@ func ListProducts(c *gin.Context) {
 func parsePositiveProductID(c *gin.Context, paramName string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(paramName), 10, 64)
 	if err != nil || id <= 0 {
-		response.Fail(c, 400, 1001, "无效的商品ID")
+		response.Fail(c, 400, 1001, service.ErrInvalidProductID.Error())
 		return 0, false
 	}
 	return id, true
@@ -85,7 +85,7 @@ func OnSaleProduct(c *gin.Context) {
 		case errors.Is(err, service.ErrProductNotFound):
 			response.Fail(c, 404, 1001, err.Error())
 		case errors.Is(err, service.ErrProductOnSaleFailed):
-			response.Fail(c, 405, 1002, err.Error())
+			response.Fail(c, http.StatusInternalServerError, 1002, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 1003, err.Error())
 		}
@@ -104,7 +104,7 @@ func OffSaleProduct(c *gin.Context) {
 		case errors.Is(err, service.ErrProductNotFound):
 			response.Fail(c, 404, 1001, err.Error())
 		case errors.Is(err, service.ErrProductOffSaleFailed):
-			response.Fail(c, 405, 1003, err.Error())
+			response.Fail(c, http.StatusInternalServerError, 1003, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 1004, err.Error())
 		}

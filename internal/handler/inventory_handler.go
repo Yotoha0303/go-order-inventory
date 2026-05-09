@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
@@ -24,8 +25,12 @@ func InitInventory(c *gin.Context) {
 			response.Fail(c, http.StatusInternalServerError, 2002, err.Error())
 		case err == service.ErrInitInventoryExists:
 			response.Fail(c, http.StatusConflict, 2003, err.Error())
+		case errors.Is(err, service.ErrCreateStockLogFailed):
+			response.Fail(c, http.StatusInternalServerError, 2004, err.Error())
+		case errors.Is(err, service.ErrInventoryNotFound):
+			response.Fail(c, http.StatusNotFound, 2005, err.Error())
 		default:
-			response.Fail(c, http.StatusInternalServerError, 2004, "未知错误")
+			response.Fail(c, http.StatusInternalServerError, 2006, "未知错误")
 		}
 		return
 	}
@@ -46,8 +51,8 @@ func GetInventoryByProductID(c *gin.Context) {
 	inventory, err := service.GetInventoryByProductID(id)
 	if err != nil {
 		switch {
-		case err == service.ErrProductNotFound:
-			response.Fail(c, http.StatusNotFound, 2001, err.Error())
+		case err == service.ErrInventoryNotFound:
+			response.Fail(c, http.StatusNotFound, 2005, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 2002, "查询库存失败")
 		}

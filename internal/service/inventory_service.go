@@ -13,10 +13,11 @@ import (
 var (
 	ErrInitInventoryFailed = errors.New("初始化库存失败")
 	ErrInitInventoryExists = errors.New("库存已初始化")
+	ErrInventoryNotFound   = errors.New("库存未找到")
 )
 
 func InitInventory(req *request.InitInventoryRequest) error {
-	product, err := GetProductByID(req.ProductID)
+	product, err := dao.GetProductByID(global.DB, req.ProductID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrProductNotFound
@@ -32,38 +33,37 @@ func InitInventory(req *request.InitInventoryRequest) error {
 		return ErrInitInventoryExists
 	}
 
-	inventory := &model.Inventory{
-		ProductID:     product.ID,
-		StockQuantity: req.StockQuantity,
-	}
+	return global.DB.Transaction(func(tx *gorm.DB) error {
+		inventory := &model.Inventory{
+			ProductID:     product.ID,
+			StockQuantity: *req.StockQuantity,
+		}
 
-	err = dao.InitInventory(global.DB, inventory)
-	if err != nil {
-		return ErrInitInventoryFailed
-	}
+		if err := dao.InitInventory(global.DB, inventory); err != nil {
+			return ErrInitInventoryFailed
+		}
 
-	log := &model.StockLog{
-		ProductID:      product.ID,
-		BeforeQuantity: 0,
-		AfterQuantity:  req.StockQuantity,
-		ChangeQuantity: req.StockQuantity - 0,
-		BizType:        model.StockBizInit,
-		Remark:         "初始化库存:" + string(product.Name),
-	}
+		log := &model.StockLog{
+			ProductID:      product.ID,
+			BeforeQuantity: 0,
+			AfterQuantity:  *req.StockQuantity,
+			ChangeQuantity: *req.StockQuantity,
+			BizType:        model.StockBizInit,
+			Remark:         "初始化库存:" + product.Name,
+		}
 
-	err = dao.CreateStockLog(global.DB, log)
-	if err != nil {
-		return ErrCreateStockLogFailed
-	}
-
-	return nil
+		if err := dao.CreateStockLog(global.DB, log); err != nil {
+			return ErrCreateStockLogFailed
+		}
+		return nil
+	})
 }
 
 func GetInventoryByProductID(productID int64) (*model.Inventory, error) {
 	inventory, err := dao.GetInventoryByProductID(global.DB, productID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrProductNotFound
+			return nil, ErrInventoryNotFound
 		}
 		return nil, err
 	}
