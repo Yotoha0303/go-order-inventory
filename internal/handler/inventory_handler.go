@@ -39,7 +39,16 @@ func InitInventory(c *gin.Context) {
 }
 
 func AddInventory(c *gin.Context) {
-	response.Fail(c, http.StatusNotImplemented, 2001, "接口暂未实现")
+	var req request.AddInventoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, 2000, "请求参数错误")
+		return
+	}
+	if err := service.AddInventory(req); err != nil {
+		response.Fail(c, http.StatusInternalServerError, 2001, err.Error())
+		return
+	}
+	response.Success(c, nil)
 }
 
 func GetInventoryByProductID(c *gin.Context) {
