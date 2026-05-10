@@ -12,13 +12,7 @@ func CreateProduct(db *gorm.DB, product *model.Product) error {
 
 func ListProducts(status int8, db *gorm.DB) ([]*model.Product, error) {
 	var products []*model.Product
-
-	err := db.Model(&model.Product{}).Where("status = ?", status).Order("id DESC").Find(&products).Error
-
-	if err != nil {
-		return nil, err
-	}
-	return products, err
+	return products, db.Model(&model.Product{}).Where("status = ?", status).Order("id DESC").Find(&products).Error
 }
 
 func GetProductByID(db *gorm.DB, id int64) (*model.Product, error) {

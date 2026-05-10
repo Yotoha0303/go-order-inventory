@@ -1,0 +1,150 @@
+package service
+
+import (
+	"errors"
+	"fmt"
+	"go-order-inventory/global"
+	"go-order-inventory/internal/dao"
+	"go-order-inventory/internal/model"
+	"go-order-inventory/internal/request"
+	"go-order-inventory/internal/response"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+var (
+	ErrProductOffSale    = errors.New("商品已下架")
+	ErrInsufficientStock = errors.New("库存不足")
+	ErrCreateOrderFailed = errors.New("创建订单失败")
+	ErrOrderNotFound     = errors.New("订单不存在")
+)
+
+func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
+	var createOrder *model.Order
+
+	err := global.DB.Transaction(func(tx *gorm.DB) error {
+		var totalAmountFen int64 = 0
+
+		orderNo := generateOrderNo()
+
+		order := &model.Order{
+			OrderNo:        orderNo,
+			TotalAmountFen: 0,
+			Status:         model.OrderStatusPending,
+		}
+
+		if err := dao.CreateOrder(tx, order); err != nil {
+			return err
+		}
+
+		for _, itemReq := range req.Items {
+			product, err := dao.GetProductByID(tx, itemReq.ProductID)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return ErrProductNotFound
+				}
+				return err
+			}
+
+			if product.Status != model.ProductStatusOnSale {
+				return ErrProductOffSale
+			}
+
+			inv, err := dao.GetInventoryByProductID(tx, itemReq.ProductID)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return ErrInsufficientStock
+				}
+				return err
+			}
+
+			beforeQuantity := inv.StockQuantity
+			afterQuantity := beforeQuantity - itemReq.Quantity
+
+			if afterQuantity < 0 {
+				return ErrInsufficientStock
+			}
+
+			rows, err := dao.DeductInventory(tx, itemReq.ProductID, itemReq.Quantity)
+			if err != nil {
+				return err
+			}
+			if rows == 0 {
+				return ErrInsufficientStock
+			}
+
+			subtotalFen := product.PriceFen * itemReq.Quantity
+			totalAmountFen += subtotalFen
+
+			orderItem := &model.OrderItem{
+				OrderID:         order.ID,
+				ProductID:       product.ID,
+				ProdcutName:     product.Name,
+				ProductPriceFen: product.PriceFen,
+				Quantity:        itemReq.Quantity,
+				SubtotalFen:     subtotalFen,
+			}
+
+			if err := dao.CreateOrderItems(tx, orderItem); err != nil {
+				return err
+			}
+
+			stockLog := &model.StockLog{
+				ProductID:      product.ID,
+				ChangeQuantity: -itemReq.Quantity,
+				BeforeQuantity: beforeQuantity,
+				AfterQuantity:  afterQuantity,
+				BizType:        model.StockBizOrderDeduct,
+				BizID:          &order.ID,
+				Remark:         "创建订单扣减库存：" + order.OrderNo,
+			}
+			if err := dao.CreateStockLog(tx, stockLog); err != nil {
+				return ErrCreateStockLogFailed
+			}
+		}
+
+		if err := tx.Model(&model.Order{}).Where("id = ?", order.ID).Update("total_amount_fen", totalAmountFen).Error; err != nil {
+			return err
+		}
+
+		order.TotalAmountFen = totalAmountFen
+		createOrder = order
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return createOrder, nil
+}
+
+func generateOrderNo() string {
+	return fmt.Sprintf("ORD%d", time.Now().UnixNano())
+}
+
+func GetOrderByID(id int64) (*response.OrderDetailResponse, error) {
+	order, err := dao.GetOrderByID(global.DB, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrOrderNotFound
+		}
+		return nil, err
+	}
+
+	items, err := dao.ListOrderItemsByOrderID(global.DB, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response.OrderDetailResponse{
+		Order: order,
+		Items: items,
+	}, nil
+}
+
+func ListOrders() ([]*model.Order, error) {
+	return dao.ListOrders(global.DB)
+}

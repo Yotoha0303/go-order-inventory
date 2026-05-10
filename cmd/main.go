@@ -18,7 +18,7 @@ func main() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
-	if err := db.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}); err != nil {
+	if err := db.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}, &model.Order{}, &model.OrderItem{}); err != nil {
 		log.Fatalf("auto migrate failed: %v", err)
 	}
 

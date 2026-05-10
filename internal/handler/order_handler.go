@@ -1,0 +1,61 @@
+package handler
+
+import (
+	"errors"
+	"go-order-inventory/internal/request"
+	"go-order-inventory/internal/response"
+	"go-order-inventory/internal/service"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+func CreateOrder(c *gin.Context) {
+	var req request.CreateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, 3000, "请求参数错误")
+		return
+	}
+
+	order, err := service.CreateOrder(req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProductNotFound):
+			response.Fail(c, http.StatusNotFound, 3001, err.Error())
+		case errors.Is(err, service.ErrProductOffSale):
+			response.Fail(c, http.StatusConflict, 3002, err.Error())
+		case errors.Is(err, service.ErrInventoryNotFound):
+			response.Fail(c, http.StatusNotFound, 3003, err.Error())
+		case errors.Is(err, service.ErrInsufficientStock):
+			response.Fail(c, http.StatusConflict, 3004, err.Error())
+		default:
+			response.Fail(c, http.StatusInternalServerError, 3005, err.Error())
+		}
+		return
+	}
+
+	response.Success(c, order)
+}
+
+func GetOrderByID(c *gin.Context) {
+	id, ok := parsePositiveProductID(c, "id")
+	if !ok {
+		return
+	}
+
+	order, err := service.GetOrderByID(id)
+	if err != nil {
+		response.Fail(c, http.StatusNotFound, 3007, err.Error())
+		return
+	}
+	response.Success(c, order)
+}
+
+func ListOrders(c *gin.Context) {
+	orders, err := service.ListOrders()
+	if err != nil {
+		response.Fail(c, http.StatusNotImplemented, 3006, "查询订单列表失败")
+		return
+	}
+	response.Success(c, orders)
+}

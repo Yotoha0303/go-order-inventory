@@ -29,3 +29,11 @@ func UpdateInventory(db *gorm.DB, productID int64, stockQuantity int64) error {
 
 	return nil
 }
+
+func DeductInventory(db *gorm.DB, productID int64, quantity int64) (int64, error) {
+
+	result := db.Model(&model.Inventory{}).Where("product_id = ? AND stock_quantity >= ?", productID, quantity).
+		UpdateColumn("stock_quantity", gorm.Expr("stock_quantity - ?", quantity))
+
+	return result.RowsAffected, result.Error
+}
