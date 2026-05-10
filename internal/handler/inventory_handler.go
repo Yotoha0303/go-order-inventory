@@ -48,7 +48,7 @@ func AddInventory(c *gin.Context) {
 			response.Fail(c, http.StatusBadRequest, 2007, err.Error())
 
 		case errors.Is(err, service.ErrInventoryNotFound):
-			response.Fail(c, http.StatusBadRequest, 2008, err.Error())
+			response.Fail(c, http.StatusNotFound, 2008, err.Error())
 
 		case errors.Is(err, service.ErrProductNotFound):
 			response.Fail(c, http.StatusNotFound, 2001, err.Error())

@@ -89,4 +89,4 @@ PATCH {{baseUrl}}/api/v1/products/1/off-sale
 PATCH {{baseUrl}}/api/v1/products/0/off-sale
 
 ### 15. 商品下架 - 不存在
-PATCH {{baseUrl}}/api/v1/products/0/off-sale
+PATCH {{baseUrl}}/api/v1/products/999999/off-sale

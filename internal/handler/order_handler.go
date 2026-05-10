@@ -45,7 +45,11 @@ func GetOrderByID(c *gin.Context) {
 
 	order, err := service.GetOrderByID(id)
 	if err != nil {
-		response.Fail(c, http.StatusNotFound, 3007, err.Error())
+		if errors.Is(err, service.ErrOrderNotFound) {
+			response.Fail(c, http.StatusNotFound, 3007, err.Error())
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, 3008, "查询订单详情失败")
 		return
 	}
 	response.Success(c, order)
@@ -54,7 +58,7 @@ func GetOrderByID(c *gin.Context) {
 func ListOrders(c *gin.Context) {
 	orders, err := service.ListOrders()
 	if err != nil {
-		response.Fail(c, http.StatusNotImplemented, 3006, "查询订单列表失败")
+		response.Fail(c, http.StatusInternalServerError, 3006, "查询订单列表失败")
 		return
 	}
 	response.Success(c, orders)

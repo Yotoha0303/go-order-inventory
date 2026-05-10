@@ -28,6 +28,9 @@ Content-Type: application/json
 }
 
 ### 4. 增加库存 - 未初始化库存，应失败
+### 说明：先创建一个商品，但不要初始化库存
+### 然后对这个 product_id 调用 AddInventory
+### 预期 ErrInventoryNotFound
 POST {{baseUrl}}/api/v1/inventory/add
 Content-Type: application/json
 
