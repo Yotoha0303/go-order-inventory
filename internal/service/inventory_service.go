@@ -97,7 +97,7 @@ func AddInventory(req request.AddInventoryRequest) error {
 		beforeQuantity := inventory.StockQuantity
 		afterQuantity := beforeQuantity + req.Quantity
 
-		if err := dao.UpdateInventory(tx, req.ProductID, afterQuantity); err != nil {
+		if err := dao.UpdateInventoryStockQuantity(tx, req.ProductID, afterQuantity); err != nil {
 			return err
 		}
 

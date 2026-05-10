@@ -27,8 +27,6 @@ func InitInventory(c *gin.Context) {
 			response.Fail(c, http.StatusConflict, 2003, err.Error())
 		case errors.Is(err, service.ErrCreateStockLogFailed):
 			response.Fail(c, http.StatusInternalServerError, 2004, err.Error())
-		case errors.Is(err, service.ErrInventoryNotFound):
-			response.Fail(c, http.StatusNotFound, 2005, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 2006, "未知错误")
 		}
@@ -45,7 +43,22 @@ func AddInventory(c *gin.Context) {
 		return
 	}
 	if err := service.AddInventory(req); err != nil {
-		response.Fail(c, http.StatusInternalServerError, 2001, err.Error())
+		switch {
+		case errors.Is(err, service.ErrInvalidAddQuantity):
+			response.Fail(c, http.StatusBadRequest, 2007, err.Error())
+
+		case errors.Is(err, service.ErrInventoryNotFound):
+			response.Fail(c, http.StatusBadRequest, 2008, err.Error())
+
+		case errors.Is(err, service.ErrProductNotFound):
+			response.Fail(c, http.StatusNotFound, 2001, err.Error())
+
+		case errors.Is(err, service.ErrCreateStockLogFailed):
+			response.Fail(c, http.StatusInternalServerError, 2004, err.Error())
+
+		default:
+			response.Fail(c, http.StatusInternalServerError, 2009, "增加库存失败")
+		}
 		return
 	}
 	response.Success(c, nil)

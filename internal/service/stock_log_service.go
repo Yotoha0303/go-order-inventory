@@ -9,7 +9,6 @@ import (
 
 var (
 	ErrCreateStockLogFailed = errors.New("创建库存日志失败")
-	ErrStockLogNotFound     = errors.New("库存日志未找到")
 )
 
 func CreateStockLog(log *model.StockLog) error {
