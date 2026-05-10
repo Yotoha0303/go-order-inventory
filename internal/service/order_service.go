@@ -54,7 +54,7 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 			inv, err := dao.GetInventoryByProductID(tx, itemReq.ProductID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return ErrInsufficientStock
+					return ErrInventoryNotFound
 				}
 				return err
 			}
@@ -80,7 +80,7 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 			orderItem := &model.OrderItem{
 				OrderID:         order.ID,
 				ProductID:       product.ID,
-				ProdcutName:     product.Name,
+				ProductName:     product.Name,
 				ProductPriceFen: product.PriceFen,
 				Quantity:        itemReq.Quantity,
 				SubtotalFen:     subtotalFen,
