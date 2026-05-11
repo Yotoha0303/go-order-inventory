@@ -174,6 +174,40 @@ func CancelOrders(orderID int64) error {
 	}
 
 	return global.DB.Transaction(func(tx *gorm.DB) error {
+
+		items, err := dao.ListOrderItemsByOrderID(tx, order.ID)
+		if err != nil {
+			return err
+		}
+
+		for _, item := range items {
+			inventory, err := dao.GetInventoryByProductID(tx, item.ProductID)
+			if err != nil {
+				return err
+			}
+
+			before := inventory.StockQuantity
+			after := before + item.Quantity
+
+			if err := dao.UpdateInventoryStockQuantity(tx, item.ProductID, after); err != nil {
+				return err
+			}
+
+			stockLog := &model.StockLog{
+				ProductID:      item.ProductID,
+				BizID:          &order.ID,
+				ChangeQuantity: item.Quantity,
+				AfterQuantity:  after,
+				BeforeQuantity: before,
+				BizType:        model.StockBizOrderRollback,
+				Remark:         "取消订单回滚库存：" + order.OrderNo,
+			}
+
+			if err := dao.CreateStockLog(tx, stockLog); err != nil {
+				return err
+			}
+		}
+
 		row, err := dao.PatchOrderStatus(tx, order.ID, model.OrderStatusPending, model.OrderStatusCancelled, "cancelled_at")
 		if err != nil {
 			return err
@@ -183,41 +217,6 @@ func CancelOrders(orderID int64) error {
 			return ErrOrderCancelFailed
 		}
 
-		orderItems, err := dao.ListOrderItemsByOrderID(tx, order.ID)
-		if err != nil {
-			return err
-		}
-
-		stockLogData, err := dao.ListStockLogsByProductID(tx, &orderItems[len(orderItems)-1].ProductID)
-		if err != nil {
-			return err
-		}
-
-		changeQuantity := stockLogData[0].BeforeQuantity - stockLogData[0].AfterQuantity
-		inventory, err := dao.GetInventoryByProductID(tx, stockLogData[0].ProductID)
-		if err != nil {
-			return err
-		}
-		sum := inventory.StockQuantity + changeQuantity
-		err = dao.UpdateInventoryStockQuantity(tx, stockLogData[0].ProductID, sum)
-		if err != nil {
-			return err
-		}
-
-		stockLog := &model.StockLog{
-			ProductID:      stockLogData[0].ProductID,
-			BizID:          &order.ID,
-			ChangeQuantity: changeQuantity,
-			AfterQuantity:  sum,
-			BeforeQuantity: stockLogData[0].AfterQuantity,
-			BizType:        model.StockBizOrderRollback,
-			Remark:         "取消订单加库存：" + order.OrderNo,
-		}
-
-		err = dao.CreateStockLog(tx, stockLog)
-		if err != nil {
-			return err
-		}
 		return nil
 	})
 }
