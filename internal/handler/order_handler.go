@@ -63,3 +63,58 @@ func ListOrders(c *gin.Context) {
 	}
 	response.Success(c, orders)
 }
+
+func CancelOrders(c *gin.Context) {
+	orderID, ok := parsePositiveProductID(c, "id")
+	if !ok {
+		return
+	}
+
+	if err := service.CancelOrders(orderID); err != nil {
+		if errors.Is(err, service.ErrOrderNotFound) || errors.Is(err, service.ErrOrderCancelFailed) {
+			response.Fail(c, http.StatusBadRequest, 3009, err.Error())
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, 3010, "取消订单失败")
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+func PayOrder(c *gin.Context) {
+	orderID, ok := parsePositiveProductID(c, "id")
+	if !ok {
+		return
+	}
+
+	if err := service.PayOrder(orderID); err != nil {
+		if errors.Is(err, service.ErrOrderNotFound) || errors.Is(err, service.ErrOrderPayFailed) {
+			response.Fail(c, http.StatusBadRequest, 3011, err.Error())
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, 3010, "订单支付失败")
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+func FinishOrder(c *gin.Context) {
+	orderID, ok := parsePositiveProductID(c, "id")
+	if !ok {
+		return
+	}
+
+	if err := service.FinishOrder(orderID); err != nil {
+		if errors.Is(err, service.ErrOrderNotFound) ||
+			errors.Is(err, service.ErrOrderCancelFailed) {
+			response.Fail(c, http.StatusBadRequest, 3012, err.Error())
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, 3010, "订单出现错误")
+		return
+	}
+
+	response.Success(c, nil)
+}

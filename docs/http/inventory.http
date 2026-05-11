@@ -5,7 +5,7 @@ POST {{baseUrl}}/api/v1/inventory/init
 Content-Type: application/json
 
 {
-  "product_id": 13,
+  "product_id": 11,
   "stock_quantity": 100
 }
 
@@ -23,7 +23,7 @@ POST {{baseUrl}}/api/v1/inventory/add
 Content-Type: application/json
 
 {
-  "product_id": 13,
+  "product_id": 11,
   "quantity": 0
 }
 
@@ -35,7 +35,7 @@ POST {{baseUrl}}/api/v1/inventory/add
 Content-Type: application/json
 
 {
-  "product_id": 999999,
+  "product_id": 11,
   "quantity": 20
 }
 

@@ -14,10 +14,14 @@ import (
 )
 
 var (
-	ErrProductOffSale    = errors.New("商品已下架")
-	ErrInsufficientStock = errors.New("库存不足")
-	ErrCreateOrderFailed = errors.New("创建订单失败")
-	ErrOrderNotFound     = errors.New("订单不存在")
+	ErrProductOffSale         = errors.New("商品已下架")
+	ErrInsufficientStock      = errors.New("库存不足")
+	ErrCreateOrderFailed      = errors.New("创建订单失败")
+	ErrOrderNotFound          = errors.New("订单不存在")
+	ErrOrderCancelFailed      = errors.New("订单取消失败")
+	ErrOrderPayFailed         = errors.New("订单支付失败")
+	ErrOrderFinishFailed      = errors.New("订单完成失败")
+	ErrOrderAlreadPayFinished = errors.New("订单已经支付完成")
 )
 
 func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
@@ -147,4 +151,86 @@ func GetOrderByID(id int64) (*response.OrderDetailResponse, error) {
 
 func ListOrders() ([]*model.Order, error) {
 	return dao.ListOrders(global.DB)
+}
+
+func CancelOrders(orderID int64) error {
+	order, err := dao.GetOrderByID(global.DB, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrOrderNotFound
+		}
+		return err
+	}
+
+	if order.Status == model.OrderStatusCancelled {
+		return nil
+	}
+
+	if order.Status == model.OrderStatusFinished {
+		return ErrOrderAlreadPayFinished
+	}
+
+	row, err := dao.PatchOrderPendingStatus(global.DB, order.ID, model.OrderStatusCancelled, "cancelled_at")
+	if err != nil {
+		return err
+	}
+
+	if row == 0 {
+		return ErrOrderCancelFailed
+	}
+	return nil
+}
+
+func PayOrder(orderID int64) error {
+	order, err := dao.GetOrderByID(global.DB, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrOrderNotFound
+		}
+		return err
+	}
+
+	if order.Status == model.OrderStatusPaid || order.Status == model.OrderStatusFinished {
+		return nil
+	}
+
+	if order.Status == model.OrderStatusPending {
+		row, err := dao.PatchOrderPendingStatus(global.DB, order.ID, model.OrderStatusPaid, "paid_at")
+		if err != nil {
+			return err
+		}
+
+		if row == 0 {
+			return ErrOrderPayFailed
+		}
+		return nil
+	}
+	return ErrOrderPayFailed
+}
+
+func FinishOrder(orderID int64) error {
+	order, err := dao.GetOrderByID(global.DB, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrOrderNotFound
+		}
+		return err
+	}
+
+	if order.Status == model.OrderStatusFinished {
+		return nil
+	}
+
+	if order.Status == model.OrderStatusPaid {
+		row, err := dao.PatchOrderPendingStatus(global.DB, order.ID, model.OrderStatusFinished, "completed_at")
+		if err != nil {
+			return err
+		}
+
+		if row == 0 {
+			return ErrOrderFinishFailed
+		}
+		return nil
+	}
+	return ErrOrderFinishFailed
 }

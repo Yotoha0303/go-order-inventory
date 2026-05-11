@@ -2,6 +2,7 @@ package dao
 
 import (
 	"go-order-inventory/internal/model"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -27,4 +28,9 @@ func ListOrders(db *gorm.DB) ([]*model.Order, error) {
 func ListOrderItemsByOrderID(db *gorm.DB, orderID int64) ([]*model.OrderItem, error) {
 	var items []*model.OrderItem
 	return items, db.Model(&model.OrderItem{}).Where("order_id = ?", orderID).Order("id ASC").Find(&items).Error
+}
+
+func PatchOrderPendingStatus(db *gorm.DB, orderID int64, status int8, paidAt string) (int64, error) {
+	result := db.Model(&model.Order{}).Where("id = ?", orderID).Update("status", status).Update(paidAt, time.Now())
+	return result.RowsAffected, result.Error
 }
