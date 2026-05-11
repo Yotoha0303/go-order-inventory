@@ -74,7 +74,7 @@ func PayOrder(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrOrderNotFound):
 			response.Fail(c, http.StatusNotFound, 3009, err.Error())
-		case errors.Is(err, service.ErrOrderPayFailed), errors.Is(err, service.ErrOrderAlreadCanceled), errors.Is(err, service.ErrOrderAlreadFinished):
+		case errors.Is(err, service.ErrOrderPayFailed), errors.Is(err, service.ErrOrderAlreadCanceled), errors.Is(err, service.ErrOrderAlreadFinished), errors.Is(err, service.ErrOrderAlreadPaid):
 			response.Fail(c, http.StatusNotFound, 3010, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 3011, "订单支付失败")
