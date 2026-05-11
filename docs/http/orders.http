@@ -7,8 +7,8 @@ Content-Type: application/json
 {
   "items": [
     {
-      "product_id": 1,
-      "quantity": 2
+      "product_id": 13,
+      "quantity": 33
     }
   ]
 }
