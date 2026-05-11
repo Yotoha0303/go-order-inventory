@@ -118,7 +118,7 @@ func CancelOrders(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrOrderNotFound):
 			response.Fail(c, http.StatusNotFound, 3014, err.Error())
-		case errors.Is(err, service.ErrOrderCancelFailed), errors.Is(err, service.ErrOrderAlreadyFinished), errors.Is(err, service.ErrOrderAlreadyCanceled):
+		case errors.Is(err, service.ErrOrderCancelFailed), errors.Is(err, service.ErrOrderAlreadyFinished), errors.Is(err, service.ErrOrderAlreadyCanceled), errors.Is(err, service.ErrOrderAlreadyPaid):
 			response.Fail(c, http.StatusNotFound, 3015, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 3011, "取消订单失败")

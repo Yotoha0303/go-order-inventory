@@ -234,18 +234,6 @@ func PayOrder(orderID int64) error {
 		return err
 	}
 
-	if order.Status == model.OrderStatusPaid {
-		return ErrOrderAlreadyPaid
-	}
-
-	if order.Status == model.OrderStatusFinished {
-		return ErrOrderAlreadyFinished
-	}
-
-	if order.Status == model.OrderStatusCancelled {
-		return ErrOrderAlreadyCanceled
-	}
-
 	switch order.Status {
 	case model.OrderStatusPaid:
 		return ErrOrderAlreadyPaid
