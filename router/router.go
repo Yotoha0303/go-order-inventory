@@ -61,7 +61,7 @@ func registerOrderAPIRouter(rg *gin.RouterGroup) {
 	rg.POST("/orders", handler.CreateOrder)
 	rg.GET("/orders/:id", handler.GetOrderByID)
 	rg.GET("/orders", handler.ListOrders)
-	rg.PATCH("orders/:id/cancel", handler.CancelOrders)
+	rg.PATCH("/orders/:id/cancel", handler.CancelOrders)
 	rg.PATCH("/orders/:id/pay", handler.PayOrder)
 	rg.PATCH("/orders/:id/finish", handler.FinishOrder)
 
