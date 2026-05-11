@@ -14,17 +14,17 @@ import (
 )
 
 var (
-	ErrProductOffSale      = errors.New("商品已下架")
-	ErrInsufficientStock   = errors.New("库存不足")
-	ErrCreateOrderFailed   = errors.New("创建订单失败")
-	ErrOrderNotFound       = errors.New("订单不存在")
-	ErrOrderCancelFailed   = errors.New("订单取消失败")
-	ErrOrderPayFailed      = errors.New("订单支付失败")
-	ErrOrderFinishFailed   = errors.New("订单完成失败")
-	ErrOrderPendingFailed  = errors.New("订单未支付")
-	ErrOrderAlreadCanceled = errors.New("订单已取消")
-	ErrOrderAlreadFinished = errors.New("订单已完成")
-	ErrOrderAlreadPaid     = errors.New("订单已支付")
+	ErrProductOffSale       = errors.New("商品已下架")
+	ErrInsufficientStock    = errors.New("库存不足")
+	ErrCreateOrderFailed    = errors.New("创建订单失败")
+	ErrOrderNotFound        = errors.New("订单不存在")
+	ErrOrderCancelFailed    = errors.New("订单取消失败")
+	ErrOrderPayFailed       = errors.New("订单支付失败")
+	ErrOrderFinishFailed    = errors.New("订单完成失败")
+	ErrOrderPendingFailed   = errors.New("订单未支付")
+	ErrOrderAlreadyCanceled = errors.New("订单已取消")
+	ErrOrderAlreadyFinished = errors.New("订单已完成,不能取消")
+	ErrOrderAlreadyPaid     = errors.New("订单已支付,不能取消")
 )
 
 func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
@@ -157,23 +157,36 @@ func ListOrders() ([]*model.Order, error) {
 }
 
 func CancelOrders(orderID int64) error {
-	order, err := dao.GetOrderByID(global.DB, orderID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrOrderNotFound
-		}
-		return err
-	}
-
-	if order.Status == model.OrderStatusCancelled {
-		return ErrOrderAlreadCanceled
-	}
-
-	if order.Status == model.OrderStatusFinished {
-		return ErrOrderAlreadFinished
-	}
-
 	return global.DB.Transaction(func(tx *gorm.DB) error {
+
+		order, err := dao.GetOrderByID(tx, orderID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrOrderNotFound
+			}
+			return err
+		}
+
+		switch order.Status {
+		case model.OrderStatusCancelled:
+			return nil
+		case model.OrderStatusPending:
+		case model.OrderStatusPaid:
+			return ErrOrderAlreadyPaid
+		case model.OrderStatusFinished:
+			return ErrOrderAlreadyFinished
+		default:
+			return ErrOrderCancelFailed
+		}
+
+		rows, err := dao.PatchOrderStatus(tx, order.ID, model.OrderStatusPending, model.OrderStatusCancelled, "cancelled_at")
+		if err != nil {
+			return err
+		}
+
+		if rows == 0 {
+			return ErrOrderCancelFailed
+		}
 
 		items, err := dao.ListOrderItemsByOrderID(tx, order.ID)
 		if err != nil {
@@ -208,15 +221,6 @@ func CancelOrders(orderID int64) error {
 			}
 		}
 
-		row, err := dao.PatchOrderStatus(tx, order.ID, model.OrderStatusPending, model.OrderStatusCancelled, "cancelled_at")
-		if err != nil {
-			return err
-		}
-
-		if row == 0 {
-			return ErrOrderCancelFailed
-		}
-
 		return nil
 	})
 }
@@ -231,29 +235,38 @@ func PayOrder(orderID int64) error {
 	}
 
 	if order.Status == model.OrderStatusPaid {
-		return ErrOrderAlreadPaid
+		return ErrOrderAlreadyPaid
 	}
 
 	if order.Status == model.OrderStatusFinished {
-		return ErrOrderAlreadFinished
+		return ErrOrderAlreadyFinished
 	}
 
 	if order.Status == model.OrderStatusCancelled {
-		return ErrOrderAlreadCanceled
+		return ErrOrderAlreadyCanceled
 	}
 
-	if order.Status == model.OrderStatusPending {
-		row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPending, model.OrderStatusPaid, "paid_at")
-		if err != nil {
-			return err
-		}
-
-		if row == 0 {
-			return ErrOrderPayFailed
-		}
-		return nil
+	switch order.Status {
+	case model.OrderStatusPaid:
+		return ErrOrderAlreadyPaid
+	case model.OrderStatusFinished:
+		return ErrOrderAlreadyFinished
+	case model.OrderStatusCancelled:
+		return ErrOrderAlreadyCanceled
+	case model.OrderStatusPending:
+	default:
+		return ErrOrderPayFailed
 	}
-	return ErrOrderPayFailed
+
+	row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPending, model.OrderStatusPaid, "paid_at")
+	if err != nil {
+		return err
+	}
+
+	if row == 0 {
+		return ErrOrderPayFailed
+	}
+	return nil
 }
 
 func FinishOrder(orderID int64) error {
@@ -265,28 +278,26 @@ func FinishOrder(orderID int64) error {
 		return err
 	}
 
-	if order.Status == model.OrderStatusPending {
+	switch order.Status {
+	case model.OrderStatusPending:
 		return ErrOrderPendingFailed
+	case model.OrderStatusCancelled:
+		return ErrOrderAlreadyCanceled
+	case model.OrderStatusFinished:
+		return ErrOrderAlreadyFinished
+	case model.OrderStatusPaid:
+	default:
+		return ErrOrderFinishFailed
 	}
 
-	if order.Status == model.OrderStatusCancelled {
-		return ErrOrderAlreadCanceled
+	row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPaid, model.OrderStatusFinished, "completed_at")
+	if err != nil {
+		return err
 	}
 
-	if order.Status == model.OrderStatusFinished {
-		return ErrOrderAlreadFinished
+	if row == 0 {
+		return ErrOrderFinishFailed
 	}
+	return nil
 
-	if order.Status == model.OrderStatusPaid {
-		row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPaid, model.OrderStatusFinished, "completed_at")
-		if err != nil {
-			return err
-		}
-
-		if row == 0 {
-			return ErrOrderFinishFailed
-		}
-		return nil
-	}
-	return ErrOrderFinishFailed
 }

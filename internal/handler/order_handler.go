@@ -74,7 +74,7 @@ func PayOrder(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrOrderNotFound):
 			response.Fail(c, http.StatusNotFound, 3009, err.Error())
-		case errors.Is(err, service.ErrOrderPayFailed), errors.Is(err, service.ErrOrderAlreadCanceled), errors.Is(err, service.ErrOrderAlreadFinished), errors.Is(err, service.ErrOrderAlreadPaid):
+		case errors.Is(err, service.ErrOrderPayFailed), errors.Is(err, service.ErrOrderAlreadyCanceled), errors.Is(err, service.ErrOrderAlreadyFinished), errors.Is(err, service.ErrOrderAlreadyPaid):
 			response.Fail(c, http.StatusNotFound, 3010, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 3011, "订单支付失败")
@@ -95,9 +95,9 @@ func FinishOrder(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrOrderNotFound):
 			response.Fail(c, http.StatusNotFound, 3012, err.Error())
-		case errors.Is(err, service.ErrOrderAlreadCanceled),
+		case errors.Is(err, service.ErrOrderAlreadyCanceled),
 			errors.Is(err, service.ErrOrderPendingFailed),
-			errors.Is(err, service.ErrOrderAlreadFinished):
+			errors.Is(err, service.ErrOrderAlreadyFinished):
 			response.Fail(c, http.StatusNotFound, 3013, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 3011, "订单出现错误")
@@ -118,7 +118,7 @@ func CancelOrders(c *gin.Context) {
 		switch {
 		case errors.Is(err, service.ErrOrderNotFound):
 			response.Fail(c, http.StatusNotFound, 3014, err.Error())
-		case errors.Is(err, service.ErrOrderCancelFailed), errors.Is(err, service.ErrOrderAlreadFinished), errors.Is(err, service.ErrOrderAlreadCanceled):
+		case errors.Is(err, service.ErrOrderCancelFailed), errors.Is(err, service.ErrOrderAlreadyFinished), errors.Is(err, service.ErrOrderAlreadyCanceled):
 			response.Fail(c, http.StatusNotFound, 3015, err.Error())
 		default:
 			response.Fail(c, http.StatusInternalServerError, 3011, "取消订单失败")
