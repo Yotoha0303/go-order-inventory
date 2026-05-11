@@ -30,7 +30,11 @@ func ListOrderItemsByOrderID(db *gorm.DB, orderID int64) ([]*model.OrderItem, er
 	return items, db.Model(&model.OrderItem{}).Where("order_id = ?", orderID).Order("id ASC").Find(&items).Error
 }
 
-func PatchOrderStatus(db *gorm.DB, orderID int64, status int8, paidAt string) (int64, error) {
-	result := db.Model(&model.Order{}).Where("id = ?", orderID).Update("status", status).Update(paidAt, time.Now())
+func PatchOrderStatus(db *gorm.DB, orderID int64, fromStatus int8, toStatus int8, timeField string) (int64, error) {
+	result := db.Model(&model.Order{}).Where("id = ? AND status = ?", orderID, fromStatus).Updates(
+		map[string]interface{}{
+			"status":  toStatus,
+			timeField: time.Now(),
+		})
 	return result.RowsAffected, result.Error
 }

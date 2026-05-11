@@ -14,7 +14,7 @@ POST {{baseUrl}}/api/v1/inventory/add
 Content-Type: application/json
 
 {
-  "product_id": 13,
+  "product_id": 1,
   "quantity": 20
 }
 

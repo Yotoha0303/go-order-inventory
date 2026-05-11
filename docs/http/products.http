@@ -13,7 +13,7 @@ POST {{baseUrl}}/api/v1/products
 Content-Type: application/json
 
 {
-  "name": "测试商品B",
+  "name": "测试商品A",
   "description": "用于测试商品创建接口",
   "price_fen": 1999
 }

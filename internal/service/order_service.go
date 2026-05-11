@@ -174,7 +174,7 @@ func CancelOrders(orderID int64) error {
 	}
 
 	return global.DB.Transaction(func(tx *gorm.DB) error {
-		row, err := dao.PatchOrderStatus(tx, order.ID, model.OrderStatusCancelled, "cancelled_at")
+		row, err := dao.PatchOrderStatus(tx, order.ID, model.OrderStatusPending, model.OrderStatusCancelled, "cancelled_at")
 		if err != nil {
 			return err
 		}
@@ -183,8 +183,12 @@ func CancelOrders(orderID int64) error {
 			return ErrOrderCancelFailed
 		}
 
-		//错误点orderID不是productID
-		stockLogData, err := dao.ListStockLogsByProductID(tx, &order.ID)
+		orderItems, err := dao.ListOrderItemsByOrderID(tx, order.ID)
+		if err != nil {
+			return err
+		}
+
+		stockLogData, err := dao.ListStockLogsByProductID(tx, &orderItems[len(orderItems)-1].ProductID)
 		if err != nil {
 			return err
 		}
@@ -240,7 +244,7 @@ func PayOrder(orderID int64) error {
 	}
 
 	if order.Status == model.OrderStatusPending {
-		row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPaid, "paid_at")
+		row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPending, model.OrderStatusPaid, "paid_at")
 		if err != nil {
 			return err
 		}
@@ -275,7 +279,7 @@ func FinishOrder(orderID int64) error {
 	}
 
 	if order.Status == model.OrderStatusPaid {
-		row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusFinished, "completed_at")
+		row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPaid, model.OrderStatusFinished, "completed_at")
 		if err != nil {
 			return err
 		}
