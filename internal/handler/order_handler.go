@@ -71,7 +71,7 @@ func CancelOrders(c *gin.Context) {
 	}
 
 	if err := service.CancelOrders(orderID); err != nil {
-		if errors.Is(err, service.ErrOrderNotFound) || errors.Is(err, service.ErrOrderCancelFailed) {
+		if errors.Is(err, service.ErrOrderNotFound) || errors.Is(err, service.ErrOrderCancelFailed) || errors.Is(err, service.ErrOrderAlreadPayFinished) {
 			response.Fail(c, http.StatusBadRequest, 3009, err.Error())
 			return
 		}
@@ -89,12 +89,15 @@ func PayOrder(c *gin.Context) {
 	}
 
 	if err := service.PayOrder(orderID); err != nil {
-		if errors.Is(err, service.ErrOrderNotFound) || errors.Is(err, service.ErrOrderPayFailed) {
+		switch {
+		case errors.Is(err, service.ErrOrderNotFound):
 			response.Fail(c, http.StatusBadRequest, 3011, err.Error())
+		case errors.Is(err, service.ErrOrderPayFailed), errors.Is(err, service.ErrOrderAlreadCancel), errors.Is(err, service.ErrOrderAlreadFinished):
+			response.Fail(c, http.StatusBadRequest, 3012, err.Error())
+		default:
+			response.Fail(c, http.StatusInternalServerError, 3010, "订单支付失败")
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, 3010, "订单支付失败")
-		return
 	}
 
 	response.Success(c, nil)

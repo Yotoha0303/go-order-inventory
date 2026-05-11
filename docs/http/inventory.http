@@ -5,7 +5,7 @@ POST {{baseUrl}}/api/v1/inventory/init
 Content-Type: application/json
 
 {
-  "product_id": 11,
+  "product_id": 1,
   "stock_quantity": 100
 }
 
@@ -40,7 +40,7 @@ Content-Type: application/json
 }
 
 ### 5. 查询商品库存
-GET {{baseUrl}}/api/v1/inventory/products/13
+GET {{baseUrl}}/api/v1/inventory/products/1
 
 ### 6. 查询商品库存 - 非法 product_id
 GET {{baseUrl}}/api/v1/inventory/products/abc

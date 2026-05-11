@@ -22,6 +22,8 @@ var (
 	ErrOrderPayFailed         = errors.New("订单支付失败")
 	ErrOrderFinishFailed      = errors.New("订单完成失败")
 	ErrOrderAlreadPayFinished = errors.New("订单已经支付完成")
+	ErrOrderAlreadCancel      = errors.New("订单已经取消")
+	ErrOrderAlreadFinished    = errors.New("订单已经支付")
 )
 
 func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
@@ -170,15 +172,48 @@ func CancelOrders(orderID int64) error {
 		return ErrOrderAlreadPayFinished
 	}
 
-	row, err := dao.PatchOrderPendingStatus(global.DB, order.ID, model.OrderStatusCancelled, "cancelled_at")
-	if err != nil {
-		return err
-	}
+	return global.DB.Transaction(func(tx *gorm.DB) error {
+		row, err := dao.PatchOrderPendingStatus(global.DB, order.ID, model.OrderStatusCancelled, "cancelled_at")
+		if err != nil {
+			return err
+		}
 
-	if row == 0 {
-		return ErrOrderCancelFailed
-	}
-	return nil
+		if row == 0 {
+			return ErrOrderCancelFailed
+		}
+
+		stockLogData, err := dao.ListStockLogsByProductID(tx, &order.ID)
+		if err != nil {
+			return err
+		}
+
+		changeQuantity := stockLogData[0].BeforeQuantity - stockLogData[0].AfterQuantity
+		inventory, err := dao.GetInventoryByProductID(tx, stockLogData[0].ProductID)
+		if err != nil {
+			return err
+		}
+		sum := inventory.StockQuantity + changeQuantity
+		err = dao.UpdateInventoryStockQuantity(tx, stockLogData[0].ProductID, sum)
+		if err != nil {
+			return err
+		}
+
+		stockLog := &model.StockLog{
+			ProductID:      stockLogData[0].ProductID,
+			BizID:          &order.ID,
+			ChangeQuantity: changeQuantity,
+			AfterQuantity:  sum,
+			BeforeQuantity: stockLogData[0].AfterQuantity,
+			BizType:        model.StockBizOrderRollback,
+			Remark:         "取消订单加库存：" + order.OrderNo,
+		}
+
+		err = dao.CreateStockLog(tx, stockLog)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func PayOrder(orderID int64) error {
@@ -190,8 +225,16 @@ func PayOrder(orderID int64) error {
 		return err
 	}
 
-	if order.Status == model.OrderStatusPaid || order.Status == model.OrderStatusFinished {
+	if order.Status == model.OrderStatusPaid {
 		return nil
+	}
+
+	if order.Status == model.OrderStatusFinished {
+		return ErrOrderAlreadFinished
+	}
+
+	if order.Status == model.OrderStatusCancelled {
+		return ErrOrderAlreadCancel
 	}
 
 	if order.Status == model.OrderStatusPending {
