@@ -14,17 +14,19 @@ import (
 )
 
 var (
-	ErrProductOffSale       = errors.New("商品已下架")
-	ErrInsufficientStock    = errors.New("库存不足")
-	ErrCreateOrderFailed    = errors.New("创建订单失败")
-	ErrOrderNotFound        = errors.New("订单不存在")
-	ErrOrderCancelFailed    = errors.New("订单取消失败")
-	ErrOrderPayFailed       = errors.New("订单支付失败")
-	ErrOrderFinishFailed    = errors.New("订单完成失败")
-	ErrOrderPendingFailed   = errors.New("订单未支付")
+	ErrProductOffSale    = errors.New("商品已下架")
+	ErrInsufficientStock = errors.New("库存不足")
+	ErrCreateOrderFailed = errors.New("创建订单失败")
+	ErrOrderNotFound     = errors.New("订单不存在")
+
+	ErrOrderPayFailed    = errors.New("订单支付失败")
+	ErrOrderFinishFailed = errors.New("订单完成失败")
+	ErrOrderCancelFailed = errors.New("订单取消失败")
+
+	ErrOrderNotPaid         = errors.New("订单未支付")
 	ErrOrderAlreadyCanceled = errors.New("订单已取消")
-	ErrOrderAlreadyFinished = errors.New("订单已完成,不能取消")
-	ErrOrderAlreadyPaid     = errors.New("订单已支付,不能取消")
+	ErrOrderAlreadyFinished = errors.New("订单已完成")
+	ErrOrderAlreadyPaid     = errors.New("订单已支付")
 )
 
 func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
@@ -170,7 +172,7 @@ func CancelOrders(orderID int64) error {
 		//已经支付，不能取消，而不是订单已经完成，不能取消
 		switch order.Status {
 		case model.OrderStatusCancelled:
-			return nil
+			return ErrOrderAlreadyCanceled
 		case model.OrderStatusPending:
 		case model.OrderStatusPaid:
 			return ErrOrderAlreadyPaid
@@ -269,7 +271,7 @@ func FinishOrder(orderID int64) error {
 
 	switch order.Status {
 	case model.OrderStatusPending:
-		return ErrOrderPendingFailed
+		return ErrOrderNotPaid
 	case model.OrderStatusCancelled:
 		return ErrOrderAlreadyCanceled
 	case model.OrderStatusFinished:

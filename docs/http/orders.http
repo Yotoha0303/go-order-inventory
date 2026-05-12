@@ -70,3 +70,21 @@ PATCH  {{baseUrl}}/api/v1/orders/1/cancel
 
 ### 9.完成订单
 PATCH  {{baseUrl}}/api/v1/orders/1/finish
+
+### 10. 支付订单 - 不存在
+PATCH {{baseUrl}}/api/v1/orders/999999/pay
+
+### 11. 支付订单 - 非法 ID
+PATCH {{baseUrl}}/api/v1/orders/0/pay
+
+### 12. 完成订单 - 未支付订单，应失败
+PATCH {{baseUrl}}/api/v1/orders/1/finish
+
+### 13. 取消订单 - 已支付订单，应失败
+PATCH {{baseUrl}}/api/v1/orders/1/cancel
+
+### 14. 取消订单 - 不存在
+PATCH {{baseUrl}}/api/v1/orders/999999/cancel
+
+### 15. 完成订单 - 不存在
+PATCH {{baseUrl}}/api/v1/orders/999999/finish
