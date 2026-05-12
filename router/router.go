@@ -18,7 +18,11 @@ func registerHealthRouters(r *gin.Engine) {
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message": "ping",
+			"code": 0,
+			"msg":  "success",
+			"data": gin.H{
+				"message": "success",
+			},
 		})
 	})
 

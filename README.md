@@ -216,6 +216,51 @@ go run cmd/main.go
 
 # 8.接口说明
 
+GET /ping
+
+响应
+
+```
+{
+    "code": 0,
+	"msg": "success",
+    "data": {
+        "message": "success"
+    }
+}
+```
+
+POST /api/v1/products
+
+GET /api/v1/products
+
+GET /api/v1/products/:id
+
+PATCH /api/v1/products/:id/on-sale
+
+PATH /api/v1/products/:id/off-sale
+
+POST /api/v1/inventory/init
+
+POST /api/v1/inventory/add
+
+GET /api/v1/inventory/products/:product_id
+
+GET /api/v1/stock-logs
+
+POST /api/v1/orders
+
+GET /api/v1/orders/:id
+
+GET /api/v1/orders
+
+PATCH /api/v1/orders/:id/cancel
+
+PATCH /api/v1/:id/pay
+
+PATCH /api/v1/orders/:id/finish
+
+
 # 9.手动测试流程
 
 本项目使用 VS Code REST Client 插件维护手动接口测试文件。
@@ -223,10 +268,32 @@ go run cmd/main.go
 测试文件位置：
 
 ```text
-docs/http/products.http
+docs/http/*.http
 ```
 
 # 10.最终自测清单
 
+## 商品模块
+
+- [ ] 正常创建订单
+
+## 库存模块
+
+- [ ] 内容
+
+## 订单模块
+
+- [ ] 内容
+
+
 # 11.设计与实现要点
 
+## 1. 分层结构设计
+
+## 2.路由分组设计
+
+## 3.订单状态机
+
+## 4.统一响应与错误处理
+
+## 5.配置与敏感信息管理
