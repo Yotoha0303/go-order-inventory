@@ -4,7 +4,7 @@
 GET {{baseUrl}}/api/v1/stock-logs
 
 ### 2. 查询指定商品库存流水
-GET {{baseUrl}}/api/v1/stock-logs?product_id=13
+GET {{baseUrl}}/api/v1/stock-logs?product_id=1
 
 ### 3. 查询库存流水 - 非法 product_id
 GET {{baseUrl}}/api/v1/stock-logs?product_id=0
