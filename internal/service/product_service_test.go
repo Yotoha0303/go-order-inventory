@@ -22,3 +22,23 @@ func TestCreateProduct_InvalidPrice(t *testing.T) {
 		t.Fatalf("expected nil product, got %+v", product)
 	}
 }
+
+func TestListProduct(t *testing.T) {
+	//0、先插入Product数据
+
+	//1、再调用service层的ListProduct方法
+
+	//2、判断数据是否相等，错误打印结果
+}
+
+func TestGetProductByID(t *testing.T) {
+
+}
+
+func TestOnSaleProduct(t *testing.T) {
+
+}
+
+func TestOffSaleProduct(t *testing.T) {
+
+}
