@@ -20,7 +20,7 @@ func GetProductDetail(productID int64) (*model.Product, bool) {
 		return nil, false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Microsecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
 	val, err := global.Redis.Get(ctx, ProductDetailCacheKey(productID)).Result()
@@ -50,7 +50,7 @@ func SetProductDetail(product *model.Product) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Microsecond)
 	defer cancel()
 
-	_ = global.Redis.Set(ctx, ProductDetailCacheKey(product.ID), data, ProductDetailCacheTTL)
+	_ = global.Redis.Set(ctx, ProductDetailCacheKey(product.ID), data, ProductDetailCacheTTL).Err()
 }
 
 func DeleteProductDetailCache(productID int64) {
@@ -61,5 +61,5 @@ func DeleteProductDetailCache(productID int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Microsecond)
 	defer cancel()
 
-	_ = global.Redis.Del(ctx, ProductDetailCacheKey(productID))
+	_ = global.Redis.Del(ctx, ProductDetailCacheKey(productID)).Err()
 }
