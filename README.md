@@ -21,7 +21,7 @@
 - Gin
 - GORM
 - MySQL
-- Redis（已预留接入目录）
+- Redis
 - godotenv
 - YAML 配置
 
@@ -34,6 +34,7 @@
 - 查询商品详情
 - 商品上架
 - 商品下架
+- 商品缓存详情缓存
 
 ### 库存模块
 
@@ -67,8 +68,9 @@ internal/model/       GORM 数据模型
 internal/request/     请求参数结构
 internal/response/    响应结构
 internal/service/     业务逻辑层
+internal/bizcache/    数据缓存
 pkg/database/         MySQL 初始化
-pkg/redis/            Redis 初始化预留
+pkg/redis/            Redis 初始化
 router/               路由注册
 ```
 
@@ -281,7 +283,6 @@ docs/http/orders.http
 
 - 补充更多 service 层单元测试
 - 增加 handler 层接口测试
-- 接入 Redis 缓存商品详情
 - 增加订单幂等控制，避免重复下单或重复取消
 - 优化错误码文档和接口返回示例
 - 增加 Docker Compose，降低本地启动成本

@@ -6,6 +6,7 @@ import (
 	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/pkg/database"
+	"go-order-inventory/pkg/redis"
 	"go-order-inventory/router"
 	"log"
 )
@@ -23,6 +24,14 @@ func main() {
 	}
 
 	global.DB = db
+
+	redisClient, err := redis.InitRedis()
+	if err != nil {
+		log.Fatalf("failed to connect redis: %v", err)
+	} else {
+		global.Redis = redisClient
+		log.Println("redis connected")
+	}
 
 	cfg, err := config.LoadConfig("config.yml")
 	if err != nil {

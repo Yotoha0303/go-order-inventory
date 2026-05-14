@@ -78,7 +78,7 @@ func AddInventory(req request.AddInventoryRequest) error {
 
 	return global.DB.Transaction(func(tx *gorm.DB) error {
 
-		inventory, err := dao.GetInventoryByProductID(tx, req.ProductID)
+		inventory, err := dao.GetInventoryByProductIDForUpdate(tx, req.ProductID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrInventoryNotFound

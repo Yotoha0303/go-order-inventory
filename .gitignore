@@ -1,3 +1,6 @@
 .env
 AGENTS.md
 README.backup.md
+.gocache
+.tmp
+tools

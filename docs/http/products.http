@@ -13,7 +13,7 @@ POST {{baseUrl}}/api/v1/products
 Content-Type: application/json
 
 {
-  "name": "测试商品A",
+  "name": "测试商品E",
   "description": "用于测试商品创建接口",
   "price_fen": 1999
 }
@@ -71,7 +71,7 @@ Content-Type: application/json
 GET {{baseUrl}}/api/v1/products
 
 ### 9. 查询商品详情 - 正常
-GET {{baseUrl}}/api/v1/products/1
+GET {{baseUrl}}/api/v1/products/17
 
 ### 10. 查询商品详情 - 非法 ID
 GET {{baseUrl}}/api/v1/products/abc
@@ -80,10 +80,10 @@ GET {{baseUrl}}/api/v1/products/abc
 GET {{baseUrl}}/api/v1/products/999999
 
 ### 12. 商品上架
-PATCH {{baseUrl}}/api/v1/products/1/on-sale
+PATCH {{baseUrl}}/api/v1/products/17/on-sale
 
 ### 13. 商品下架
-PATCH {{baseUrl}}/api/v1/products/1/off-sale
+PATCH {{baseUrl}}/api/v1/products/17/off-sale
 
 ### 14. 商品下架 - 非法 ID 
 PATCH {{baseUrl}}/api/v1/products/0/off-sale

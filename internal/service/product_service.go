@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"go-order-inventory/global"
+	"go-order-inventory/internal/bizcache"
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
@@ -57,6 +58,10 @@ func ListProducts() ([]*model.Product, error) {
 
 func GetProductByID(id int64) (*model.Product, error) {
 
+	if product, ok := bizcache.GetProductDetail(id); ok {
+		return product, nil
+	}
+
 	product, err := dao.GetProductByID(global.DB, id)
 
 	if err != nil {
@@ -65,6 +70,8 @@ func GetProductByID(id int64) (*model.Product, error) {
 		}
 		return nil, err
 	}
+
+	bizcache.SetProductDetail(product)
 
 	return product, nil
 }
@@ -89,6 +96,8 @@ func OnSaleProduct(id int64) error {
 		return ErrProductOnSaleFailed
 	}
 
+	bizcache.DeleteProductDetailCache(id)
+
 	return nil
 }
 
@@ -112,6 +121,8 @@ func OffSaleProduct(id int64) error {
 	if err := dao.UpdateProductStatus(global.DB, product.ID, model.ProductStatusOffSale); err != nil {
 		return ErrProductOffSaleFailed
 	}
+
+	bizcache.DeleteProductDetailCache(id)
 
 	return nil
 }

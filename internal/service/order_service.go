@@ -60,7 +60,7 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 				return ErrProductOffSale
 			}
 
-			inv, err := dao.GetInventoryByProductID(tx, itemReq.ProductID)
+			inv, err := dao.GetInventoryByProductIDForUpdate(tx, itemReq.ProductID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					return ErrInventoryNotFound
@@ -197,7 +197,7 @@ func CancelOrders(orderID int64) error {
 		}
 
 		for _, item := range items {
-			inventory, err := dao.GetInventoryByProductID(tx, item.ProductID)
+			inventory, err := dao.GetInventoryByProductIDForUpdate(tx, item.ProductID)
 			if err != nil {
 				return err
 			}
