@@ -1,334 +1,140 @@
-# go-order-inventory (轻量级订单库存管理系统项目)
+# go-order-inventory
 
-# 1.项目简介
+轻量级订单库存管理系统，一个面向 Go 后端求职实战的项目。项目围绕商品、库存、库存流水和订单状态流转展开，重点练习 Gin 接口开发、GORM 数据建模、MySQL 事务、库存扣减一致性和分层代码组织。
 
-本项目基于 Go + Gin + GORM + MySQL 实现轻量级订单库存管理系统，支持商品创建、商品查询、商品上架、商品下架、库存初始化、获取商品库存等等功能
+## 1. 项目简介
 
-项目采用 handler/ service/ dao/ model/ request/	response/ 分层结构，使用环境变量管理数据库配置，并通过统一请求、响应和业务逻辑错误映射提升接口规范性。 
+本项目基于 Go + Gin + GORM + MySQL 实现，提供商品管理、库存管理、库存流水查询、订单创建、订单支付、订单完成和订单取消等能力。
 
-# 2.技术栈
+项目目标不是堆功能，而是把常见后端工程能力做扎实：
+
+- 清晰的 handler / service / dao / model 分层
+- 统一请求参数校验和响应结构
+- 使用事务保证订单创建和库存扣减一致
+- 使用库存流水追踪每一次库存变化
+- 使用订单状态机限制非法状态流转
+- 通过文档和测试清单支撑项目复盘
+
+## 2. 技术栈
 
 - Go
-
 - Gin
-
-- MySQL
-
 - GORM
-
+- MySQL
+- Redis（已预留接入目录）
 - godotenv
-
 - YAML 配置
 
-- Redis (待接入)
+## 3. 核心功能
 
-# 3.核心功能
+### 商品模块
 
-- 商品模块
+- 创建商品
+- 查询商品列表
+- 查询商品详情
+- 商品上架
+- 商品下架
 
-	- 创建商品
+### 库存模块
 
-	- 查询商品
+- 初始化商品库存
+- 增加商品库存
+- 查询商品库存
+- 记录库存变更流水
 
-	- 商品上架 / 下架	
+### 订单模块
 
-- 库存模块
+- 创建订单
+- 查询订单列表
+- 查询订单详情
+- 支付订单
+- 完成订单
+- 取消订单
+- 取消订单时回滚库存
 
-	- 库存初始化
-
-	- 查询库存
-
-	- 添加库存
-
-- 查询商品库存流水
-
-- 订单模块
-
-	- 创建订单
-
-	- 查询订单
-
-	- 查询订单详情
-
-	- 支付订单 / 取消订单 / 完成订单
-
-- 统一响应结构
-
-- 环境变量配置
-
-- README + 接口文档 (待完成)
-
-- 事务锁 + 行锁 (待完成)
-
-- Redis 缓存商品详情 (待完成)
-
-# 4. 核心业务流程
-
-# 5. 业务规则说明
-
-# 6.项目结构
-
-```
-
-cmd/	项目启动的主入口
-
-config/	Yaml 配置加载
-
-docs/	项目文档，存放项目手动测试 .http 和初始化 SQL 的文件夹
-
-docs/http 项目接口的测试文件，用于手动测试项目各类接口
-
-docs/sql 项目用测试数据的初始化 SQL 文件
-
-global/	全局资源，如 DB
-
-pkg/	引用外部的资源，如 MySQL
-
-router/	全局路由
-
-internal/	资源接口 REST API
-
-internal/handler	HTTP 接口层，负责请求处理、参数绑定、响应数据
-
-internal/service	业务逻辑层，包含商品创建、商品查询、商品上架\下架等相关业务逻辑
-
-internal/dao	数据库操作层，负责数据库操作
-
-internal/model	model 层，用于定义数据结构实体
-
-internal/response	response 层，负责响应数据，返回数据结果
-
-internal/request	request 层，负责处理客户端发送的请求的数据类型
-
-```
-
-# 7.数据表说明
-
-1、product 商品表
-
-```
-CREATE TABLE `products` (
-    `id` bigint NOT NULL AUTO_INCREMENT,
-    `name` varchar(100) NOT NULL,
-    `description` varchar(500) NOT NULL DEFAULT '',
-    `price_fen` bigint NOT NULL,
-    `status` tinyint NOT NULL DEFAULT '2',
-    `created_at` datetime(3) DEFAULT NULL,
-    `updated_at` datetime(3) DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_products_status` (`status`)
-) ENGINE = InnoDB AUTO_INCREMENT = 17 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
-```
-
-2、product_inventories 商品库存表
-
-```
-CREATE TABLE `product_inventories` (
-    `id` bigint NOT NULL AUTO_INCREMENT,
-    `product_id` bigint NOT NULL,
-    `stock_quantity` bigint NOT NULL DEFAULT '0',
-    `created_at` datetime(3) DEFAULT NULL,
-    `updated_at` datetime(3) DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_inventory_product_id` (`product_id`),
-    CONSTRAINT `chk_product_inventories_stock_quantity` CHECK ((`stock_quantity` >= 0))
-) ENGINE = InnoDB AUTO_INCREMENT = 21 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
-```
-
-3、stock_logs 商品库存流水记录表
-
-```
-CREATE TABLE `stock_logs` (
-    `id` bigint NOT NULL AUTO_INCREMENT,
-    `product_id` bigint NOT NULL,
-    `change_quantity` bigint NOT NULL,
-    `before_quantity` bigint NOT NULL,
-    `after_quantity` bigint NOT NULL,
-    `biz_type` tinyint NOT NULL,
-    `biz_id` bigint DEFAULT NULL,
-    `remark` varchar(255) NOT NULL DEFAULT '',
-    `created_at` datetime(3) DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_stock_logs_product_id` (`product_id`),
-    KEY `idx_stock_logs_biz_type` (`biz_type`),
-    KEY `idx_stock_logs_biz_id` (`biz_id`)
-) ENGINE = InnoDB AUTO_INCREMENT = 84 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
-```
-
-4、order 订单表
-
-```
-CREATE TABLE `orders` (
-    `id` bigint NOT NULL AUTO_INCREMENT,
-    `order_no` varchar(255) NOT NULL,
-    `total_amount_fen` bigint NOT NULL,
-    `status` tinyint NOT NULL DEFAULT '1',
-    `paid_at` datetime DEFAULT NULL,
-    `completed_at` datetime DEFAULT NULL,
-    `cancelled_at` datetime DEFAULT NULL,
-    `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_orders_order_no` (`order_no`),
-    KEY `idx_orders_status` (`status`)
-) ENGINE = InnoDB AUTO_INCREMENT = 26 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
-```
-
-5、order_items 订单详情表
-
-```
-CREATE TABLE `order_items` (
-    `id` bigint NOT NULL AUTO_INCREMENT,
-    `order_id` bigint NOT NULL,
-    `product_id` bigint NOT NULL,
-    `product_name` varchar(100) NOT NULL,
-    `product_price_fen` bigint NOT NULL,
-    `quantity` bigint NOT NULL,
-    `subtotal_fen` bigint NOT NULL,
-    `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_order_items_order_id` (`order_id`),
-    KEY `idx_order_items_product_id` (`product_id`)
-) ENGINE = InnoDB AUTO_INCREMENT = 22 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
-```
-# 8.环境变量
-
-```
-
-DB_USER=root
-
-DB_PASSWORD=your_password
-
-DB_URL=127.0.0.1
-
-DB_PORT=3306
-
-DB_NAME=go-order-inventory
-
-```
-
-# 9.启动方式
-
-```
-
-go mod tidy 
-
-go run cmd/main.go
-
-```
-
-# 10.接口清单
-
-GET /ping
-
-POST /api/v1/products
-
-GET /api/v1/products
-
-GET /api/v1/products/:id
-
-PATCH /api/v1/products/:id/on-sale
-
-PATCH /api/v1/products/:id/off-sale
-
-POST /api/v1/inventory/init
-
-POST /api/v1/inventory/add
-
-GET /api/v1/inventory/products/:product_id
-
-GET /api/v1/stock-logs
-
-POST /api/v1/orders
-
-GET /api/v1/orders/:id
-
-GET /api/v1/orders
-
-PATCH /api/v1/orders/:id/cancel
-
-PATCH /api/v1/orders/:id/pay
-
-PATCH /api/v1/orders/:id/finish
-
-
-# 11.手动测试说明
-
-本项目使用 VS Code REST Client 插件维护手动接口测试文件。
-
-测试文件位置：
+## 4. 项目结构
 
 ```text
-docs/http/*.http
+cmd/                  项目启动入口
+config/               配置加载
+docs/                 项目文档、接口测试文件、SQL 脚本
+docs/http/            REST Client 手动接口测试文件
+docs/sql/             初始化和测试 SQL
+global/               全局资源，如 DB
+internal/dao/         数据库访问层
+internal/handler/     HTTP 接口层
+internal/model/       GORM 数据模型
+internal/request/     请求参数结构
+internal/response/    响应结构
+internal/service/     业务逻辑层
+pkg/database/         MySQL 初始化
+pkg/redis/            Redis 初始化预留
+router/               路由注册
 ```
 
-# 12.核心自测清单
+## 5. 分层说明
 
-## 商品模块
-
-- [ ] 正常创建商品
-
-## 库存模块
-
-- [ ] 内容
-
-## 订单模块
-
-- [ ] 内容
-
-
-# 13.设计与实现要点
-
-
-## 1. 分层结构设计
-
-项目采用 handler / service / dao / model / request / response 分层结构：
+项目采用简单的企业后端分层方式：
 
 - handler：负责 HTTP 请求处理、参数绑定、错误映射和统一响应
 - service：负责业务规则、状态流转、事务控制和跨表操作
-- dao：负责数据库 CRUD 和条件更新
-- model：负责 GORM 实体映射
-- request：负责接口入参结构和参数校验
-- response：负责统一响应结构
+- dao：负责数据库 CRUD、条件查询和条件更新
+- model：负责数据库表结构映射
+- request：负责接口入参结构和校验规则
+- response：负责接口响应结构
 
-这种拆分避免了 HTTP 处理、业务规则和数据库操作混在一起，方便后续扩展订单状态流转、库存扣减、库存流水和 Redis 缓存。
+核心原则：handler 不写业务规则，service 不直接拼 HTTP 响应，dao 不处理业务状态。
 
-## 2. 商品设计
+## 6. 数据表设计
 
-商品创建后默认下架，状态值：
+当前核心表：
 
-- 1：上架
-- 2：下架
+- products：商品表
+- product_inventories：商品库存表
+- stock_logs：库存流水表
+- orders：订单主表
+- order_items：订单明细表
 
-创建商品时会校验商品名称和价格，价格使用 price_fen 存储，避免浮点精度问题。
+关键设计点：
 
-## 3. 库存设计
+- 商品价格使用 price_fen，单位为分，避免浮点精度问题
+- 商品创建后默认下架，避免未准备库存的商品直接下单
+- product_inventories 通过 product_id 唯一索引保证一个商品只有一条库存记录
+- stock_logs 记录 before_quantity、change_quantity、after_quantity，便于追踪库存变化
+- orders 使用状态机控制待支付、已支付、已完成、已取消
+- order_items 保存下单时的商品名称和价格快照
 
-库存表使用 product_inventories，每个商品只能有一条库存记录，通过 product_id 唯一索引保证。
+详细表结构见：[docs/table_design.md](docs/table_design.md)
 
-库存变化不只改库存表，而是同时写入 stock_logs，记录：
+## 7. 核心业务规则
 
-- before_quantity：变更前库存
-- change_quantity：变更数量
-- after_quantity：变更后库存
-- biz_type：业务类型
-- biz_id：关联业务 ID
+### 商品规则
 
-## 4. 订单事务设计
+- 商品名称不能为空
+- 商品价格 price_fen 必须大于 0
+- 商品创建后默认下架，status = 2
+- 商品上架后 status = 1
+- 商品下架后 status = 2
 
-创建订单时在同一个数据库事务中完成：
+### 库存规则
 
-1. 创建订单主表
-2. 校验商品存在且已上架
-3. 校验库存存在且充足
-4. 扣减库存
-5. 创建订单项
-6. 写入库存流水
-7. 更新订单总金额
+- 初始化库存前商品必须存在
+- 一个商品只能初始化一次库存
+- 增加库存前库存记录必须存在
+- 库存变更必须写入 stock_logs
+- 库存流水 biz_type：1 初始化库存，2 手动入库，3 订单扣减，4 取消订单回滚
 
-任一环节失败时，整个事务回滚，避免出现订单创建成功但库存未扣减，或库存已扣减但订单失败的问题。
+### 订单规则
 
-## 5. 订单状态机
+- 创建订单时 items 不能为空
+- 下单商品必须存在且已上架
+- 商品库存必须存在且充足
+- 创建订单、扣减库存、创建订单项、写库存流水必须在同一个事务内完成
+- 取消待支付订单时需要回滚库存
+
+详细规则见：[docs/business_rules.md](docs/business_rules.md)
+
+## 8. 订单状态机
 
 订单状态：
 
@@ -343,12 +149,140 @@ docs/http/*.http
 - 已支付 -> 已完成
 - 待支付 -> 已取消
 
-不允许的状态流转：
+禁止的状态流转：
 
 - 已支付订单不能取消
 - 已完成订单不能取消
 - 已取消订单不能支付或完成
 - 未支付订单不能完成
 
-# 14. 当前问题与后续演进
-# 15. 简历项目描述
+## 9. 接口清单
+
+### 健康检查
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | /ping | 健康检查 |
+
+### 商品接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | /api/v1/products | 创建商品 |
+| GET | /api/v1/products | 查询商品列表 |
+| GET | /api/v1/products/:id | 查询商品详情 |
+| PATCH | /api/v1/products/:id/on-sale | 商品上架 |
+| PATCH | /api/v1/products/:id/off-sale | 商品下架 |
+
+### 库存接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | /api/v1/inventory/init | 初始化库存 |
+| POST | /api/v1/inventory/add | 增加库存 |
+| GET | /api/v1/inventory/products/:product_id | 查询商品库存 |
+| GET | /api/v1/stock-logs | 查询库存流水 |
+
+### 订单接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | /api/v1/orders | 创建订单 |
+| GET | /api/v1/orders | 查询订单列表 |
+| GET | /api/v1/orders/:id | 查询订单详情 |
+| PATCH | /api/v1/orders/:id/pay | 支付订单 |
+| PATCH | /api/v1/orders/:id/finish | 完成订单 |
+| PATCH | /api/v1/orders/:id/cancel | 取消订单 |
+
+完整接口说明见：[docs/api_list.md](docs/api_list.md)
+
+## 10. 环境变量
+
+项目通过 `.env` 读取数据库配置：
+
+```env
+DB_USER=root
+DB_PASSWORD=your_password
+DB_URL=127.0.0.1
+DB_PORT=3306
+DB_NAME=go-order-inventory
+```
+
+服务端口配置在 `config.yml`：
+
+```yaml
+server:
+  port: 8082
+```
+
+## 11. 启动方式
+
+安装依赖：
+
+```bash
+go mod tidy
+```
+
+启动服务：
+
+```bash
+go run cmd/main.go
+```
+
+默认访问地址：
+
+```text
+http://localhost:8082
+```
+
+健康检查：
+
+```bash
+curl http://localhost:8082/ping
+```
+
+## 12. 测试方式
+
+运行 Go 测试：
+
+```bash
+go test ./...
+```
+
+手动接口测试：
+
+```text
+docs/http/products.http
+docs/http/inventory.http
+docs/http/stock_logs.http
+docs/http/orders.http
+```
+
+测试计划见：[docs/test_plan.md](docs/test_plan.md)
+
+## 13. 项目文档
+
+- [docs/api_list.md](docs/api_list.md)：接口清单
+- [docs/business_rules.md](docs/business_rules.md)：业务规则
+- [docs/table_design.md](docs/table_design.md)：数据表设计
+- [docs/test_plan.md](docs/test_plan.md)：测试计划
+- [docs/project_review.md](docs/project_review.md)：项目复盘
+- [docs/project_evolution.md](docs/project_evolution.md)：后续演进
+
+## 14. 当前可复盘亮点
+
+- 订单创建使用事务包住订单、库存、订单项和库存流水
+- 库存扣减使用条件更新，避免库存不足时继续扣减
+- 库存变化有 stock_logs，可追踪业务来源
+- 订单状态通过 service 层统一控制，避免接口层散落状态判断
+- 项目文档、接口测试文件和测试清单逐步补齐，便于面试讲解
+
+## 15. 后续演进方向
+
+- 补充更多 service 层单元测试
+- 增加 handler 层接口测试
+- 接入 Redis 缓存商品详情
+- 增加订单幂等控制，避免重复下单或重复取消
+- 优化错误码文档和接口返回示例
+- 增加 Docker Compose，降低本地启动成本
+
