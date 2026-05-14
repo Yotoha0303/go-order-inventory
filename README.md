@@ -2,23 +2,23 @@
 
 # 1.项目简介
 
-本项目基于 Go + Gin + Gorm + MySQL 实现轻量级订单库存管理系统，支持商品创建、商品查询、商品上架、商品下架、库存初始化、获取商品库存等等功能
+本项目基于 Go + Gin + GORM + MySQL 实现轻量级订单库存管理系统，支持商品创建、商品查询、商品上架、商品下架、库存初始化、获取商品库存等等功能
 
 项目采用 handler/ service/ dao/ model/ request/	response/ 分层结构，使用环境变量管理数据库配置，并通过统一请求、响应和业务逻辑错误映射提升接口规范性。 
 
 # 2.技术栈
 
-- GO
+- Go
 
 - Gin
 
 - MySQL
 
-- Gorm
+- GORM
 
 - godotenv
 
-- Yaml配置
+- YAML 配置
 
 - Redis (待接入)
 
@@ -82,7 +82,7 @@ docs/sql 项目用测试数据的初始化 SQL 文件
 
 global/	全局资源，如 DB
 
-pkg/	引用外部的资源，如Mysql
+pkg/	引用外部的资源，如 MySQL
 
 router/	全局路由
 
@@ -221,18 +221,6 @@ go run cmd/main.go
 
 GET /ping
 
-响应
-
-```
-{
-    "code": 0,
-	"msg": "success",
-    "data": {
-        "message": "success"
-    }
-}
-```
-
 POST /api/v1/products
 
 GET /api/v1/products
@@ -278,7 +266,7 @@ docs/http/*.http
 
 ## 商品模块
 
-- [ ] 正常创建订单
+- [ ] 正常创建商品
 
 ## 库存模块
 
@@ -318,7 +306,7 @@ docs/http/*.http
 
 库存表使用 product_inventories，每个商品只能有一条库存记录，通过 product_id 唯一索引保证。
 
-库存变化不直接只改库存表，而是同时写入 stock_logs，记录：
+库存变化不只改库存表，而是同时写入 stock_logs，记录：
 
 - before_quantity：变更前库存
 - change_quantity：变更数量
