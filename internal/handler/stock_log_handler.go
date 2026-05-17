@@ -24,7 +24,7 @@ func ListStockLogs(c *gin.Context) {
 
 	stockLogs, err := service.ListStockLogsByProductID(productID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, response.CodeStockLogNotFound, "查询库存日志失败")
+		response.Fail(c, http.StatusInternalServerError, response.CodeQueryStockLogFailed, "查询库存日志失败")
 		return
 	}
 	response.Success(c, stockLogs)

@@ -40,7 +40,7 @@ func CreateOrder(c *gin.Context) {
 func ListOrders(c *gin.Context) {
 	orders, err := service.ListOrders()
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, response.CodeOrderNotFound, "查询订单列表失败")
+		response.Fail(c, http.StatusInternalServerError, response.CodeQueryOrderListFailed, "查询订单列表失败")
 		return
 	}
 	response.Success(c, orders)
@@ -58,7 +58,7 @@ func GetOrderByID(c *gin.Context) {
 			response.Fail(c, http.StatusNotFound, response.CodeOrderNotFound, err.Error())
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, response.CodeOrderNotFound, "查询订单详情失败")
+		response.Fail(c, http.StatusInternalServerError, response.CodeQueryOrderDetailNotFound, "查询订单详情失败")
 		return
 	}
 	response.Success(c, order)
@@ -78,9 +78,9 @@ func PayOrder(c *gin.Context) {
 			errors.Is(err, service.ErrOrderAlreadyCanceled),
 			errors.Is(err, service.ErrOrderAlreadyFinished),
 			errors.Is(err, service.ErrOrderAlreadyPaid):
-			response.Fail(c, http.StatusConflict, response.CodeOrderPayFailed, err.Error())
+			response.Fail(c, http.StatusConflict, response.CodeOrderPayConflict, err.Error())
 		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodePayOrderFailed, "订单支付失败")
+			response.Fail(c, http.StatusInternalServerError, response.CodeOrderPayFailed, "订单支付失败")
 		}
 		return
 	}
@@ -102,9 +102,9 @@ func FinishOrder(c *gin.Context) {
 			errors.Is(err, service.ErrOrderNotPaid),
 			errors.Is(err, service.ErrOrderAlreadyFinished),
 			errors.Is(err, service.ErrOrderFinishFailed):
-			response.Fail(c, http.StatusConflict, response.CodeOrderFinishFailed, err.Error())
+			response.Fail(c, http.StatusConflict, response.CodeOrderFinishConflict, err.Error())
 		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodeFinishOrderUnknownFailed, "订单出现错误")
+			response.Fail(c, http.StatusInternalServerError, response.CodeOrderFinishFailed, "订单出现错误")
 		}
 		return
 	}
@@ -126,9 +126,9 @@ func CancelOrders(c *gin.Context) {
 			errors.Is(err, service.ErrOrderAlreadyFinished),
 			errors.Is(err, service.ErrOrderAlreadyCanceled),
 			errors.Is(err, service.ErrOrderAlreadyPaid):
-			response.Fail(c, http.StatusConflict, response.CodeOrderCancelFailed, err.Error())
+			response.Fail(c, http.StatusConflict, response.CodeOrderCancelConflict, err.Error())
 		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodeCancelOrderUnknownFailed, "取消订单失败")
+			response.Fail(c, http.StatusInternalServerError, response.CodeOrderCancelFailed, "取消订单失败")
 		}
 		return
 	}

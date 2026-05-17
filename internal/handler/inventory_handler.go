@@ -45,7 +45,7 @@ func AddInventory(c *gin.Context) {
 	if err := service.AddInventory(req); err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidAddQuantity):
-			response.Fail(c, http.StatusBadRequest, response.CodeInvalidAddQuantityFailed, err.Error())
+			response.Fail(c, http.StatusBadRequest, response.CodeInventoryInvalidQuantity, err.Error())
 
 		case errors.Is(err, service.ErrInventoryNotFound):
 			response.Fail(c, http.StatusNotFound, response.CodeInventoryNotFound, err.Error())
@@ -72,7 +72,7 @@ func GetInventoryByProductID(c *gin.Context) {
 
 	inventory, err := service.GetInventoryByProductID(id)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, response.CodeInventoryNotFound, "查询库存失败")
+		response.Fail(c, http.StatusInternalServerError, response.CodeQueryInventoryFailed, "查询库存失败")
 		return
 	}
 

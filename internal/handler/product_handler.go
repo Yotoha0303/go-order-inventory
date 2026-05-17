@@ -39,7 +39,7 @@ func ListProducts(c *gin.Context) {
 	products, err := service.ListProducts()
 
 	if err != nil {
-		response.Fail(c, http.StatusNotFound, response.CodeProductNotFound, err.Error())
+		response.Fail(c, http.StatusNotFound, response.CodeQueryProductListFailed, err.Error())
 		return
 	}
 
@@ -67,7 +67,7 @@ func GetProductByID(c *gin.Context) {
 			response.Fail(c, http.StatusNotFound, response.CodeProductNotFound, err.Error())
 			return
 		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodeProductNotFound, "查询商品失败")
+			response.Fail(c, http.StatusInternalServerError, response.CodeQueryProductFailed, "查询商品失败")
 		}
 		return
 	}
