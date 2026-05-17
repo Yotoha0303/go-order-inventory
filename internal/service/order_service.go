@@ -169,10 +169,9 @@ func CancelOrder(orderID int64) error {
 			return err
 		}
 
-		//已经支付，不能取消，而不是订单已经完成，不能取消
 		switch order.Status {
 		case model.OrderStatusCancelled:
-			return ErrOrderAlreadyCanceled
+			return nil
 		case model.OrderStatusPending:
 		case model.OrderStatusPaid:
 			return ErrOrderAlreadyPaid

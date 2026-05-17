@@ -9,7 +9,25 @@ Content-Type: application/json
   "stock_quantity": 100
 }
 
-### 2. 增加库存 - 正常
+### 2. 初始化库存 - 不存在
+POST {{baseUrl}}/api/v1/inventory/init
+Content-Type: application/json
+
+{
+  "product_id": 999,
+  "stock_quantity": 100
+}
+
+### 3. 初始化库存 - `stock_quantity = 0` 可以初始化
+POST {{baseUrl}}/api/v1/inventory/init
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "stock_quantity": 0
+}
+
+### 4. 增加库存 - 正常
 POST {{baseUrl}}/api/v1/inventory/add
 Content-Type: application/json
 
@@ -18,32 +36,29 @@ Content-Type: application/json
   "quantity": 20
 }
 
-### 3. 增加库存 - quantity = 0，应返回参数错误
+### 5. 增加库存 - 未初始化库存，应失败
 POST {{baseUrl}}/api/v1/inventory/add
 Content-Type: application/json
 
 {
-  "product_id": 11,
+  "product_id": 2,
   "quantity": 0
 }
 
-### 4. 增加库存 - 未初始化库存，应失败
-### 说明：先创建一个商品，但不要初始化库存
-### 然后对这个 product_id 调用 AddInventory
-### 预期 ErrInventoryNotFound
+### 6. 增加库存 - quantity <= 0,应失败
 POST {{baseUrl}}/api/v1/inventory/add
 Content-Type: application/json
 
 {
-  "product_id": 11,
-  "quantity": 20
+  "product_id": 1,
+  "quantity": -1
 }
 
-### 5. 查询商品库存
+### 7. 查询商品库存
 GET {{baseUrl}}/api/v1/inventory/products/1
 
-### 6. 查询商品库存 - 非法 product_id
+### 8. 查询商品库存 - 非法 product_id
 GET {{baseUrl}}/api/v1/inventory/products/abc
 
-### 7. 查询商品库存 - 不存在
+### 9. 查询商品库存 - 不存在
 GET {{baseUrl}}/api/v1/inventory/products/999999

@@ -88,3 +88,9 @@ PATCH {{baseUrl}}/api/v1/orders/999999/cancel
 
 ### 15. 完成订单 - 不存在
 PATCH {{baseUrl}}/api/v1/orders/999999/finish
+
+### 16. 取消订单 - 第一次取消
+PATCH {{baseUrl}}/api/v1/orders/1/cancel
+
+### 17. 取消订单 - 重复取消，应直接成功，不重复回滚库存
+PATCH {{baseUrl}}/api/v1/orders/1/cancel

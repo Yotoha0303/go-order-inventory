@@ -13,9 +13,9 @@ POST {{baseUrl}}/api/v1/products
 Content-Type: application/json
 
 {
-  "name": "测试商品E",
+  "name": "测试商品F",
   "description": "用于测试商品创建接口",
-  "price_fen": 1999
+  "price_fen": 2026
 }
 
 ### 3. 创建商品 - 缺少 name，应返回参数错误
@@ -24,7 +24,7 @@ Content-Type: application/json
 
 {
   "description": "缺少商品名称",
-  "price_fen": 1999
+  "price_fen": 2026
 }
 
 ### 4. 创建商品 - price_fen 为 0，应返回参数错误
@@ -71,7 +71,7 @@ Content-Type: application/json
 GET {{baseUrl}}/api/v1/products
 
 ### 9. 查询商品详情 - 正常
-GET {{baseUrl}}/api/v1/products/17
+GET {{baseUrl}}/api/v1/products/1
 
 ### 10. 查询商品详情 - 非法 ID
 GET {{baseUrl}}/api/v1/products/abc
@@ -80,10 +80,10 @@ GET {{baseUrl}}/api/v1/products/abc
 GET {{baseUrl}}/api/v1/products/999999
 
 ### 12. 商品上架
-PATCH {{baseUrl}}/api/v1/products/17/on-sale
+PATCH {{baseUrl}}/api/v1/products/1/on-sale
 
 ### 13. 商品下架
-PATCH {{baseUrl}}/api/v1/products/17/off-sale
+PATCH {{baseUrl}}/api/v1/products/1/off-sale
 
 ### 14. 商品下架 - 非法 ID 
 PATCH {{baseUrl}}/api/v1/products/0/off-sale
