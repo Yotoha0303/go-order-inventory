@@ -158,7 +158,7 @@ func ListOrders() ([]*model.Order, error) {
 	return dao.ListOrders(global.DB)
 }
 
-func CancelOrders(orderID int64) error {
+func CancelOrder(orderID int64) error {
 	return global.DB.Transaction(func(tx *gorm.DB) error {
 
 		order, err := dao.GetOrderByID(tx, orderID)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
+	"log"
 	"time"
 )
 
@@ -25,6 +26,7 @@ func GetProductDetail(productID int64) (*model.Product, bool) {
 
 	val, err := global.Redis.Get(ctx, ProductDetailCacheKey(productID)).Result()
 	if err != nil {
+		log.Printf("get product cache failed: product_id=%d err=%v", productID, err)
 		return nil, false
 	}
 

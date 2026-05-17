@@ -95,7 +95,7 @@ func TestCancelOrder_RollbackInventory(t *testing.T) {
 		t.Fatalf("create order failed: %v", err)
 	}
 
-	if err := service.CancelOrders(order.ID); err != nil {
+	if err := service.CancelOrder(order.ID); err != nil {
 		t.Fatalf("cancel order failed: %v", err)
 	}
 

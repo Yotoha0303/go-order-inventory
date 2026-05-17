@@ -284,6 +284,7 @@ docs/http/orders.http
 - 补充更多 service 层单元测试
 - 增加 handler 层接口测试
 - 增加订单幂等控制，避免重复下单或重复取消
+- 使用 App 容器化统一管理依赖
 - 优化错误码文档和接口返回示例
 - 增加 Docker Compose，降低本地启动成本
 

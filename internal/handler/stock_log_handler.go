@@ -16,7 +16,7 @@ func ListStockLogs(c *gin.Context) {
 	if productIDStr != "" {
 		id, err := strconv.ParseInt(productIDStr, 10, 64)
 		if err != nil || id <= 0 {
-			response.Fail(c, http.StatusBadRequest, 2000, "无效的产品ID")
+			response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "无效的产品ID")
 			return
 		}
 		productID = &id
@@ -24,7 +24,7 @@ func ListStockLogs(c *gin.Context) {
 
 	stockLogs, err := service.ListStockLogsByProductID(productID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, 2001, "查询库存日志失败")
+		response.Fail(c, http.StatusInternalServerError, response.CodeStockLogNotFound, "查询库存日志失败")
 		return
 	}
 	response.Success(c, stockLogs)

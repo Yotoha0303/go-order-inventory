@@ -13,22 +13,22 @@ import (
 func InitInventory(c *gin.Context) {
 	var req request.InitInventoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, 2000, "请求参数错误")
+		response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "请求参数错误")
 		return
 	}
 
 	if err := service.InitInventory(&req); err != nil {
 		switch {
 		case err == service.ErrProductNotFound:
-			response.Fail(c, http.StatusNotFound, 2001, err.Error())
+			response.Fail(c, http.StatusNotFound, response.CodeProductNotFound, err.Error())
 		case err == service.ErrInitInventoryFailed:
-			response.Fail(c, http.StatusInternalServerError, 2002, err.Error())
+			response.Fail(c, http.StatusInternalServerError, response.CodeInitInventoryFailed, err.Error())
 		case err == service.ErrInitInventoryExists:
-			response.Fail(c, http.StatusConflict, 2003, err.Error())
+			response.Fail(c, http.StatusConflict, response.CodeInitInventoryExists, err.Error())
 		case errors.Is(err, service.ErrCreateStockLogFailed):
-			response.Fail(c, http.StatusInternalServerError, 2004, err.Error())
+			response.Fail(c, http.StatusInternalServerError, response.CodeCreateStockLogFailed, err.Error())
 		default:
-			response.Fail(c, http.StatusInternalServerError, 2006, "未知错误")
+			response.Fail(c, http.StatusInternalServerError, response.CodeInitInventoryFailed, "未知错误")
 		}
 		return
 	}
@@ -39,25 +39,25 @@ func InitInventory(c *gin.Context) {
 func AddInventory(c *gin.Context) {
 	var req request.AddInventoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, 2000, "请求参数错误")
+		response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "请求参数错误")
 		return
 	}
 	if err := service.AddInventory(req); err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidAddQuantity):
-			response.Fail(c, http.StatusBadRequest, 2007, err.Error())
+			response.Fail(c, http.StatusBadRequest, response.CodeInvalidAddQuantityFailed, err.Error())
 
 		case errors.Is(err, service.ErrInventoryNotFound):
-			response.Fail(c, http.StatusNotFound, 2008, err.Error())
+			response.Fail(c, http.StatusNotFound, response.CodeInventoryNotFound, err.Error())
 
 		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, http.StatusNotFound, 2001, err.Error())
+			response.Fail(c, http.StatusNotFound, response.CodeProductNotFound, err.Error())
 
 		case errors.Is(err, service.ErrCreateStockLogFailed):
-			response.Fail(c, http.StatusInternalServerError, 2004, err.Error())
+			response.Fail(c, http.StatusInternalServerError, response.CodeCreateStockLogFailed, err.Error())
 
 		default:
-			response.Fail(c, http.StatusInternalServerError, 2009, "增加库存失败")
+			response.Fail(c, http.StatusInternalServerError, response.CodeAddInventoryError, "增加库存失败")
 		}
 		return
 	}
@@ -65,19 +65,14 @@ func AddInventory(c *gin.Context) {
 }
 
 func GetInventoryByProductID(c *gin.Context) {
-	id, ok := parsePositiveProductID(c, "product_id")
+	id, ok := parsePositiveID(c, "product_id")
 	if !ok {
 		return
 	}
 
 	inventory, err := service.GetInventoryByProductID(id)
 	if err != nil {
-		switch {
-		case err == service.ErrInventoryNotFound:
-			response.Fail(c, http.StatusNotFound, 2005, err.Error())
-		default:
-			response.Fail(c, http.StatusInternalServerError, 2002, "查询库存失败")
-		}
+		response.Fail(c, http.StatusInternalServerError, response.CodeInventoryNotFound, "查询库存失败")
 		return
 	}
 
