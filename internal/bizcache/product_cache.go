@@ -30,7 +30,6 @@ func GetProductDetail(productID int64) (*model.Product, bool) {
 		return nil, false
 	}
 
-	// Parse the cached value into a Product model
 	var product model.Product
 	if err := json.Unmarshal([]byte(val), &product); err != nil {
 		return nil, false
