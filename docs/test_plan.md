@@ -109,6 +109,8 @@ docs/http/orders.http
 
 ## 7. Redis 缓存测试
 
-- [ ] 查询订单详情时，第二次会从 redis 中获取 product
-- [ ] 商品上架时，redis 会删除旧的商品缓存
-- [ ] 商品下架时，redis 会删除旧的商品缓存
+- [x] 商品详情缓存 key 是否正确
+- [x] Redis 为空时，缓存函数不会影响主流程
+- [x] SetProductDetail 后能 GetProductDetail
+- [x] DeleteProductDetailCache 后再次 Get 应该 miss
+- [x] 缓存 TTL 是否存在
