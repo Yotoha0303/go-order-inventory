@@ -68,7 +68,7 @@ func FinishOrder(c *gin.Context) {
 	}
 
 	if err := service.FinishOrder(orderID); err != nil {
-		handleError(c, err, response.CodeOrderFinishConflict, "完成订单失败")
+		handleError(c, err, response.CodeOrderFinishFailed, "完成订单失败")
 		return
 	}
 
@@ -82,7 +82,7 @@ func CancelOrders(c *gin.Context) {
 	}
 
 	if err := service.CancelOrder(orderID); err != nil {
-		handleError(c, err, response.CodeOrderCancelConflict, "取消订单失败")
+		handleError(c, err, response.CodeOrderCancelFailed, "取消订单失败")
 		return
 	}
 

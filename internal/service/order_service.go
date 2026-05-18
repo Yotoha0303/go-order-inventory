@@ -15,22 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// var (
-// 	ErrProductOffSale    = errors.New("商品已下架")
-// 	ErrInsufficientStock = errors.New("库存不足")
-// 	ErrCreateOrderFailed = errors.New("创建订单失败")
-// 	ErrOrderNotFound     = errors.New("订单不存在")
-
-// 	ErrOrderPayFailed    = errors.New("订单支付失败")
-// 	ErrOrderFinishFailed = errors.New("订单完成失败")
-// 	ErrOrderCancelFailed = errors.New("订单取消失败")
-
-// 	ErrOrderNotPaid         = errors.New("订单未支付")
-// 	ErrOrderAlreadyCanceled = errors.New("订单已取消")
-// 	ErrOrderAlreadyFinished = errors.New("订单已完成")
-// 	ErrOrderAlreadyPaid     = errors.New("订单已支付")
-// )
-
 var (
 	ErrProductOffSale = apperror.New(
 		http.StatusConflict,
@@ -45,7 +29,7 @@ var (
 	)
 
 	ErrCreateOrderFailed = apperror.New(
-		http.StatusConflict,
+		http.StatusInternalServerError,
 		response.CodeCreateOrderFailed,
 		"创建订单失败",
 	)
@@ -58,19 +42,19 @@ var (
 
 	ErrOrderPayFailed = apperror.New(
 		http.StatusConflict,
-		response.CodeOrderPayConflict,
+		response.CodeOrderPayFailed,
 		"订单支付失败",
 	)
 
 	ErrOrderFinishFailed = apperror.New(
 		http.StatusConflict,
-		response.CodeOrderFinishConflict,
+		response.CodeOrderFinishFailed,
 		"订单完成失败",
 	)
 
 	ErrOrderCancelFailed = apperror.New(
 		http.StatusConflict,
-		response.CodeOrderCancelConflict,
+		response.CodeOrderCancelFailed,
 		"订单取消失败",
 	)
 

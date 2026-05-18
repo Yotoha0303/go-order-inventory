@@ -32,16 +32,13 @@ const (
 	CodeInsufficientStock        = 4001
 	CodeCreateOrderFailed        = 4002
 	CodeOrderNotFound            = 4003
-	CodeOrderPayConflict         = 4004
-	CodeOrderPayFailed           = 4005
-	CodeOrderFinishConflict      = 4006
-	CodeOrderFinishFailed        = 4007
-	CodeOrderCancelConflict      = 4008
-	CodeOrderCancelFailed        = 4009
-	CodeQueryOrderListFailed     = 4010
-	CodeQueryOrderDetailNotFound = 4011
-	CodeOrderNotPaid             = 4012
-	CodeOrderAlreadyCanceled     = 4013
-	CodeOrderAlreadyFinished     = 4014
-	CodeOrderAlreadyPaid         = 4015
+	CodeOrderPayFailed           = 4004
+	CodeOrderFinishFailed        = 4005
+	CodeOrderCancelFailed        = 4006
+	CodeQueryOrderListFailed     = 4007
+	CodeQueryOrderDetailNotFound = 4008
+	CodeOrderNotPaid             = 4009
+	CodeOrderAlreadyCanceled     = 4010
+	CodeOrderAlreadyFinished     = 4011
+	CodeOrderAlreadyPaid         = 4012
 )
