@@ -2,25 +2,23 @@ package database
 
 import (
 	"fmt"
+	"go-order-inventory/config"
 	"os"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
-func InitTestDB() (*gorm.DB, error) {
+func InitTestDB(cfg config.MySQLConfig) (*gorm.DB, error) {
 
-	dbUser := os.Getenv("DB_TEST_USER")
-	dbPassword := os.Getenv("DB_TEST_PASSWORD")
-	dbUrl := os.Getenv("DB_TEST_URL")
-	dbPort := os.Getenv("DB_TEST_PORT")
-	dbName := os.Getenv("DB_TEST_NAME")
+	// dbUser := os.Getenv("MYSQL_TEST_USER")
+	dbPassword := os.Getenv("MYSQL_TEST_PASSWORD")
 
-	if dbUser == "" || dbPassword == "" || dbUrl == "" || dbPort == "" || dbName == "" {
+	if cfg.User == "" || dbPassword == "" || cfg.Host == "" || cfg.Port == "" || cfg.Database == "" {
 		return nil, fmt.Errorf("database config missing")
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbUser, dbPassword, dbUrl, dbPort, dbName)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfg.User, dbPassword, cfg.Host, cfg.Port, cfg.Database)
 
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{})
 }

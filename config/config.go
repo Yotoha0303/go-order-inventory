@@ -10,14 +10,30 @@ import (
 
 type Config struct {
 	Server ServerConfig `yaml:"server"`
+	MySQL  MySQLConfig  `yaml:"mysql"`
+	Redis  RedisConfig  `yaml:"redis"`
 }
 
 type ServerConfig struct {
 	Port int `yaml:"port"`
 }
 
+type MySQLConfig struct {
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	Database string `yaml:"dbname"`
+}
+
+type RedisConfig struct {
+	Addr     string `yaml:"addr"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
+}
+
 func LoadEnv() {
-	godotenv.Load()
+	_ = godotenv.Load()
 }
 
 func LoadConfig(path string) (*Config, error) {

@@ -14,7 +14,12 @@ import (
 func main() {
 	config.LoadEnv()
 
-	db, err := database.InitDB()
+	cfg, err := config.LoadConfig("config.yml")
+	if err != nil {
+		log.Fatalf("load config failed:%v", err)
+	}
+
+	db, err := database.InitDB(cfg.MySQL)
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
@@ -25,17 +30,12 @@ func main() {
 
 	global.DB = db
 
-	redisClient, err := redis.InitRedis()
+	redisClient, err := redis.InitRedis(cfg.Redis)
 	if err != nil {
 		log.Printf("failed to connect redis: %v", err)
 	} else {
 		global.Redis = redisClient
 		log.Println("redis connected")
-	}
-
-	cfg, err := config.LoadConfig("config.yml")
-	if err != nil {
-		log.Fatalf("load config failed:%v", err)
 	}
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

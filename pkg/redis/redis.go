@@ -3,36 +3,27 @@ package redis
 import (
 	"context"
 	"fmt"
+	"go-order-inventory/config"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-func InitRedis() (*redis.Client, error) {
+func InitRedis(cfg config.RedisConfig) (*redis.Client, error) {
 
-	addr := os.Getenv("REDIS_ADDR")
+	// addr := os.Getenv("REDIS_ADDR")
 	password := os.Getenv("REDIS_PASSWORD")
-	dbStr := os.Getenv("REDIS_DB")
+	// dbStr := os.Getenv("REDIS_DB")
 
-	if addr == "" {
+	if cfg.Addr == "" {
 		return nil, fmt.Errorf("redis addr missing")
 	}
 
-	db := 0
-	if dbStr != "" {
-		parseDB, err := strconv.Atoi(dbStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid redis db: %v", err)
-		}
-		db = parseDB
-	}
-
 	client := redis.NewClient(&redis.Options{
-		Addr:     addr,
+		Addr:     cfg.Addr,
 		Password: password,
-		DB:       db,
+		DB:       cfg.DB,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

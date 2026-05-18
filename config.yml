@@ -1,2 +1,12 @@
 server:
   port: 8082
+
+mysql:
+  user: root
+  host: 127.0.0.1
+  port: "3306"
+  database: go-order-inventory
+
+redis:
+  host: 127.0.0.1:6379
+  db: 0

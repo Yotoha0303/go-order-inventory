@@ -8,6 +8,8 @@ import (
 	"go-order-inventory/internal/model"
 	"log"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 const ProductDetailCacheTTL = 10 * time.Minute
@@ -26,6 +28,11 @@ func GetProductDetail(ctx context.Context, productID int64) (*model.Product, boo
 
 	val, err := global.Redis.Get(ctx, ProductDetailCacheKey(productID)).Result()
 	if err != nil {
+
+		if err == redis.Nil {
+			return nil, false
+		}
+
 		log.Printf("get product cache failed: product_id=%d err=%v", productID, err)
 		return nil, false
 	}
