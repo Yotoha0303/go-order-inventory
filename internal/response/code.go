@@ -4,7 +4,6 @@ const (
 	CodeSuccess        = 0
 	CodeParameterError = 1001
 
-	CodeProductParameterError  = 1102
 	CodeCreateProductFailed    = 1103
 	CodeProductNotFound        = 1104
 	CodeProductOnsaleFailed    = 1105
@@ -29,16 +28,17 @@ const (
 )
 
 const (
-	CodeInsufficientStock        = 4001
-	CodeCreateOrderFailed        = 4002
-	CodeOrderNotFound            = 4003
-	CodeOrderPayFailed           = 4004
-	CodeOrderFinishFailed        = 4005
-	CodeOrderCancelFailed        = 4006
-	CodeQueryOrderListFailed     = 4007
-	CodeQueryOrderDetailNotFound = 4008
-	CodeOrderNotPaid             = 4009
-	CodeOrderAlreadyCanceled     = 4010
-	CodeOrderAlreadyFinished     = 4011
-	CodeOrderAlreadyPaid         = 4012
+	CodeInsufficientStock      = 4001
+	CodeCreateOrderFailed      = 4002
+	CodeOrderNotFound          = 4003
+	CodeOrderPayFailed         = 4004
+	CodeOrderFinishFailed      = 4005
+	CodeOrderCancelFailed      = 4006
+	CodeQueryOrderListFailed   = 4007
+	CodeQueryOrderDetailFailed = 4008
+	CodeOrderNotPaid           = 4009
+	CodeOrderAlreadyCanceled   = 4010
+	CodeOrderAlreadyFinished   = 4011
+	CodeOrderAlreadyPaid       = 4012
+	CodeOrderParameterError    = 4013
 )

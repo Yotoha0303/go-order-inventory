@@ -13,7 +13,7 @@ import (
 func CreateProduct(c *gin.Context) {
 	var req request.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, response.CodeProductParameterError,  "参数错误")
+		response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "参数错误")
 		return
 	}
 
@@ -42,7 +42,7 @@ func ListProducts(c *gin.Context) {
 func parsePositiveID(c *gin.Context, paramName string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(paramName), 10, 64)
 	if err != nil || id <= 0 {
-		response.Fail(c, http.StatusBadRequest, response.CodeProductParameterError, "请求参数错误")
+		response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "请求参数错误")
 		return 0, false
 	}
 	return id, true

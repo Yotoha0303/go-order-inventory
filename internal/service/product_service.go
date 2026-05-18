@@ -18,19 +18,19 @@ import (
 var (
 	ErrInvalidProductPrice = apperror.New(
 		http.StatusBadRequest,
-		response.CodeProductParameterError,
+		response.CodeParameterError,
 		"价格必须大于0",
 	)
 
 	ErrInvalidProductName = apperror.New(
 		http.StatusBadRequest,
-		response.CodeProductParameterError,
+		response.CodeParameterError,
 		"名称不能为空",
 	)
 
 	ErrInvalidProductDescription = apperror.New(
 		http.StatusBadRequest,
-		response.CodeProductParameterError,
+		response.CodeParameterError,
 		"描述不能超过500个字符",
 	)
 
@@ -42,7 +42,7 @@ var (
 
 	ErrInvalidProductID = apperror.New(
 		http.StatusNotFound,
-		response.CodeProductParameterError,
+		response.CodeParameterError,
 		"无效的商品ID",
 	)
 

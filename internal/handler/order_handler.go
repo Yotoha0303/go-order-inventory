@@ -12,7 +12,7 @@ import (
 func CreateOrder(c *gin.Context) {
 	var req request.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, response.CodeProductParameterError, "请求参数错误")
+		response.Fail(c, http.StatusBadRequest, response.CodeOrderParameterError, "请求参数错误")
 		return
 	}
 
@@ -41,7 +41,7 @@ func GetOrderByID(c *gin.Context) {
 
 	order, err := service.GetOrderByID(id)
 	if err != nil {
-		handleError(c, err, response.CodeQueryOrderDetailNotFound, "查询订单详情失败")
+		handleError(c, err, response.CodeQueryOrderDetailFailed, "查询订单详情失败")
 		return
 	}
 	response.Success(c, order)
