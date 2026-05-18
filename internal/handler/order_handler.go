@@ -12,7 +12,7 @@ import (
 func CreateOrder(c *gin.Context) {
 	var req request.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		handleError(c, err, http.StatusBadRequest, "请求参数错误")
+		response.Fail(c, http.StatusBadRequest, response.CodeProductParameterError, "请求参数错误")
 		return
 	}
 

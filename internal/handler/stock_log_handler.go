@@ -16,7 +16,7 @@ func ListStockLogs(c *gin.Context) {
 	if productIDStr != "" {
 		id, err := strconv.ParseInt(productIDStr, 10, 64)
 		if err != nil || id <= 0 {
-			handleError(c, err, http.StatusBadRequest, "无效的产品ID")
+			response.Fail(c, http.StatusBadRequest, response.CodeProductParameterError, "无效的产品ID")
 			return
 		}
 		productID = &id
