@@ -53,7 +53,7 @@ func GetProductByID(c *gin.Context) {
 	if !ok {
 		return
 	}
-	product, err := service.GetProductByID(id)
+	product, err := service.GetProductByID(c.Request.Context(), id)
 	if err != nil {
 		handleError(c, err, response.CodeQueryProductFailed, "请求商品详情失败")
 		return
@@ -67,8 +67,8 @@ func OnSaleProduct(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := service.OnSaleProduct(id); err != nil {
-		handleError(c, err, response.CodeProductOnsaleFailed, "上架商品失败")
+	if err := service.OnSaleProduct(c.Request.Context(), id); err != nil {
+		handleError(c, err, response.CodeProductOnSaleFailed, "上架商品失败")
 		return
 	}
 	response.Success(c, nil)
@@ -79,8 +79,8 @@ func OffSaleProduct(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := service.OffSaleProduct(id); err != nil {
-		handleError(c, err, response.CodeProductOffsaleFailed, "下架商品失败")
+	if err := service.OffSaleProduct(c.Request.Context(), id); err != nil {
+		handleError(c, err, response.CodeProductOffSaleFailed, "下架商品失败")
 		return
 	}
 	response.Success(c, nil)

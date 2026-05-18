@@ -16,12 +16,12 @@ func ProductDetailCacheKey(productID int64) string {
 	return fmt.Sprintf("product:detail:%d", productID)
 }
 
-func GetProductDetail(productID int64) (*model.Product, bool) {
+func GetProductDetail(ctx context.Context, productID int64) (*model.Product, bool) {
 	if global.Redis == nil {
 		return nil, false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
 
 	val, err := global.Redis.Get(ctx, ProductDetailCacheKey(productID)).Result()
@@ -38,7 +38,7 @@ func GetProductDetail(productID int64) (*model.Product, bool) {
 	return &product, true
 }
 
-func SetProductDetail(product *model.Product) {
+func SetProductDetail(ctx context.Context, product *model.Product) {
 	if global.Redis == nil || product == nil {
 		return
 	}
@@ -48,18 +48,18 @@ func SetProductDetail(product *model.Product) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Microsecond)
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
 
 	_ = global.Redis.Set(ctx, ProductDetailCacheKey(product.ID), data, ProductDetailCacheTTL).Err()
 }
 
-func DeleteProductDetailCache(productID int64) {
+func DeleteProductDetailCache(ctx context.Context, productID int64) {
 	if global.Redis == nil {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Microsecond)
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
 
 	_ = global.Redis.Del(ctx, ProductDetailCacheKey(productID)).Err()

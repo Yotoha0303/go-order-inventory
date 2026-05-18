@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"go-order-inventory/global"
 	"go-order-inventory/internal/apperror"
@@ -93,9 +94,9 @@ func ListProducts() ([]*model.Product, error) {
 	return dao.ListProducts(model.ProductStatusOffSale, global.DB)
 }
 
-func GetProductByID(id int64) (*model.Product, error) {
+func GetProductByID(ctx context.Context, id int64) (*model.Product, error) {
 
-	if product, ok := bizcache.GetProductDetail(id); ok {
+	if product, ok := bizcache.GetProductDetail(ctx, id); ok {
 		return product, nil
 	}
 
@@ -108,12 +109,12 @@ func GetProductByID(id int64) (*model.Product, error) {
 		return nil, err
 	}
 
-	bizcache.SetProductDetail(product)
+	bizcache.SetProductDetail(ctx, product)
 
 	return product, nil
 }
 
-func OnSaleProduct(id int64) error {
+func OnSaleProduct(ctx context.Context, id int64) error {
 
 	product, err := dao.GetProductByID(global.DB, id)
 	if err != nil {
@@ -133,12 +134,12 @@ func OnSaleProduct(id int64) error {
 		return ErrProductOnSaleFailed
 	}
 
-	bizcache.DeleteProductDetailCache(id)
+	bizcache.DeleteProductDetailCache(ctx, id)
 
 	return nil
 }
 
-func OffSaleProduct(id int64) error {
+func OffSaleProduct(ctx context.Context, id int64) error {
 
 	product, err := dao.GetProductByID(global.DB, id)
 
@@ -159,7 +160,7 @@ func OffSaleProduct(id int64) error {
 		return ErrProductOffSaleFailed
 	}
 
-	bizcache.DeleteProductDetailCache(id)
+	bizcache.DeleteProductDetailCache(ctx, id)
 
 	return nil
 }

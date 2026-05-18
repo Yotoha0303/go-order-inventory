@@ -1,6 +1,7 @@
 package bizcache_test
 
 import (
+	"context"
 	"go-order-inventory/global"
 	"go-order-inventory/internal/bizcache"
 	"go-order-inventory/internal/model"
@@ -18,11 +19,11 @@ func TestProductDetailCacheKey(t *testing.T) {
 func TestProductDetailCache_NoRedis(t *testing.T) {
 	global.Redis = nil
 
-	product, ok := bizcache.GetProductDetail(1)
+	product, ok := bizcache.GetProductDetail(context.Background(), 1)
 	if ok {
 		t.Fatalf("expected cache miss when redis is nil, got hit: %+v", product)
 	}
 
-	bizcache.SetProductDetail(&model.Product{ID: 1, Name: "test"})
-	bizcache.DeleteProductDetailCache(1)
+	bizcache.SetProductDetail(context.Background(), &model.Product{ID: 1, Name: "test"})
+	bizcache.DeleteProductDetailCache(context.Background(), 1)
 }

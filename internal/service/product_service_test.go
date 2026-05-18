@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"errors"
 	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
@@ -70,7 +71,7 @@ func TestListProducts_OnlyOffSale(t *testing.T) {
 func TestGetProductByID_NotFound(t *testing.T) {
 	setupTestDB(t)
 
-	_, err := service.GetProductByID(99999)
+	_, err := service.GetProductByID(context.Background(), 99999)
 	if !errors.Is(err, service.ErrProductNotFound) {
 		t.Fatalf("expected ErrProductNotFound, got %v", err)
 	}
@@ -80,7 +81,7 @@ func TestOnSaleProduct_Success(t *testing.T) {
 	setupTestDB(t)
 
 	p := seedProduct(t, "p1", 100, model.ProductStatusOffSale)
-	if err := service.OnSaleProduct(p.ID); err != nil {
+	if err := service.OnSaleProduct(context.Background(), p.ID); err != nil {
 		t.Fatalf("on sale failed: %v", err)
 	}
 
@@ -97,7 +98,7 @@ func TestOffSaleProduct_Success(t *testing.T) {
 	setupTestDB(t)
 
 	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
-	if err := service.OffSaleProduct(p.ID); err != nil {
+	if err := service.OffSaleProduct(context.Background(), p.ID); err != nil {
 		t.Fatalf("off sale failed: %v", err)
 	}
 
