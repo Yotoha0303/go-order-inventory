@@ -3,7 +3,6 @@ package handler
 import (
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +15,7 @@ func ListStockLogs(c *gin.Context) {
 	if productIDStr != "" {
 		id, err := strconv.ParseInt(productIDStr, 10, 64)
 		if err != nil || id <= 0 {
-			response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "无效的产品ID")
+			handlerError(c, err, response.CodeParameterError, "无效的产品ID")
 			return
 		}
 		productID = &id
@@ -24,7 +23,7 @@ func ListStockLogs(c *gin.Context) {
 
 	stockLogs, err := service.ListStockLogsByProductID(productID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, response.CodeQueryStockLogFailed, "查询库存日志失败")
+		handlerError(c, err, response.CodeCreateStockLogFailed, "库存流水日志失败")
 		return
 	}
 	response.Success(c, stockLogs)

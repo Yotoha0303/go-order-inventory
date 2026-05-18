@@ -3,23 +3,60 @@ package service
 import (
 	"errors"
 	"go-order-inventory/global"
+	"go-order-inventory/internal/apperror"
 	"go-order-inventory/internal/bizcache"
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
+	"go-order-inventory/internal/response"
+	"net/http"
 	"strings"
 
 	"gorm.io/gorm"
 )
 
 var (
-	ErrInvalidProductPrice       = errors.New("价格必须大于0")
-	ErrInvalidProductName        = errors.New("名称不能为空")
-	ErrInvalidProductDescription = errors.New("描述不能超过500个字符")
-	ErrProductNotFound           = errors.New("商品信息不存在")
-	ErrInvalidProductID          = errors.New("无效的商品ID")
-	ErrProductOnSaleFailed       = errors.New("上架商品失败")
-	ErrProductOffSaleFailed      = errors.New("下架商品失败")
+	ErrInvalidProductPrice = apperror.New(
+		http.StatusBadRequest,
+		response.CodeProductParameterError,
+		"价格必须大于0",
+	)
+
+	ErrInvalidProductName = apperror.New(
+		http.StatusBadRequest,
+		response.CodeProductParameterError,
+		"名称不能为空",
+	)
+
+	ErrInvalidProductDescription = apperror.New(
+		http.StatusBadRequest,
+		response.CodeProductParameterError,
+		"描述不能超过500个字符",
+	)
+
+	ErrProductNotFound = apperror.New(
+		http.StatusNotFound,
+		response.CodeProductNotFound,
+		"商品信息不存在",
+	)
+
+	ErrInvalidProductID = apperror.New(
+		http.StatusNotFound,
+		response.CodeProductParameterError,
+		"无效的商品ID",
+	)
+
+	ErrProductOnSaleFailed = apperror.New(
+		http.StatusConflict,
+		response.CodeProductOnsaleFailed,
+		"上架商品失败",
+	)
+
+	ErrProductOffSaleFailed = apperror.New(
+		http.StatusConflict,
+		response.CodeProductOffsaleFailed,
+		"下架商品失败",
+	)
 )
 
 func CreateProduct(req request.CreateProductRequest) (*model.Product, error) {

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
@@ -13,34 +12,22 @@ import (
 func CreateOrder(c *gin.Context) {
 	var req request.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "请求参数错误")
+		handlerError(c, err, http.StatusBadRequest, "请求参数错误")
 		return
 	}
 
 	order, err := service.CreateOrder(req)
 	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrProductNotFound):
-			response.Fail(c, http.StatusNotFound, response.CodeProductNotFound, err.Error())
-		case errors.Is(err, service.ErrProductOffSale):
-			response.Fail(c, http.StatusConflict, response.CodeProductOffsaleFailed, err.Error())
-		case errors.Is(err, service.ErrInventoryNotFound):
-			response.Fail(c, http.StatusNotFound, response.CodeInventoryNotFound, err.Error())
-		case errors.Is(err, service.ErrInsufficientStock):
-			response.Fail(c, http.StatusConflict, response.CodeInsufficientStock, err.Error())
-		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodeCreateOrderFailed, err.Error())
-		}
+		handlerError(c, err, response.CodeCreateOrderFailed, "订单创建失败")
 		return
 	}
-
 	response.Success(c, order)
 }
 
 func ListOrders(c *gin.Context) {
 	orders, err := service.ListOrders()
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, response.CodeQueryOrderListFailed, "查询订单列表失败")
+		handlerError(c, err, response.CodeQueryOrderListFailed, "查询订单列表失败")
 		return
 	}
 	response.Success(c, orders)
@@ -54,11 +41,7 @@ func GetOrderByID(c *gin.Context) {
 
 	order, err := service.GetOrderByID(id)
 	if err != nil {
-		if errors.Is(err, service.ErrOrderNotFound) {
-			response.Fail(c, http.StatusNotFound, response.CodeOrderNotFound, err.Error())
-			return
-		}
-		response.Fail(c, http.StatusInternalServerError, response.CodeQueryOrderDetailNotFound, "查询订单详情失败")
+		handlerError(c, err, response.CodeQueryOrderDetailNotFound, "查询订单详情失败")
 		return
 	}
 	response.Success(c, order)
@@ -71,17 +54,7 @@ func PayOrder(c *gin.Context) {
 	}
 
 	if err := service.PayOrder(orderID); err != nil {
-		switch {
-		case errors.Is(err, service.ErrOrderNotFound):
-			response.Fail(c, http.StatusNotFound, response.CodeOrderNotFound, err.Error())
-		case errors.Is(err, service.ErrOrderPayFailed),
-			errors.Is(err, service.ErrOrderAlreadyCanceled),
-			errors.Is(err, service.ErrOrderAlreadyFinished),
-			errors.Is(err, service.ErrOrderAlreadyPaid):
-			response.Fail(c, http.StatusConflict, response.CodeOrderPayConflict, err.Error())
-		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodeOrderPayFailed, "订单支付失败")
-		}
+		handlerError(c, err, response.CodeOrderPayConflict, "支付订单失败")
 		return
 	}
 
@@ -95,17 +68,7 @@ func FinishOrder(c *gin.Context) {
 	}
 
 	if err := service.FinishOrder(orderID); err != nil {
-		switch {
-		case errors.Is(err, service.ErrOrderNotFound):
-			response.Fail(c, http.StatusNotFound, response.CodeOrderNotFound, err.Error())
-		case errors.Is(err, service.ErrOrderAlreadyCanceled),
-			errors.Is(err, service.ErrOrderNotPaid),
-			errors.Is(err, service.ErrOrderAlreadyFinished),
-			errors.Is(err, service.ErrOrderFinishFailed):
-			response.Fail(c, http.StatusConflict, response.CodeOrderFinishConflict, err.Error())
-		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodeOrderFinishFailed, "订单出现错误")
-		}
+		handlerError(c, err, response.CodeOrderFinishConflict, "完成订单失败")
 		return
 	}
 
@@ -119,17 +82,7 @@ func CancelOrders(c *gin.Context) {
 	}
 
 	if err := service.CancelOrder(orderID); err != nil {
-		switch {
-		case errors.Is(err, service.ErrOrderNotFound):
-			response.Fail(c, http.StatusNotFound, response.CodeOrderNotFound, err.Error())
-		case errors.Is(err, service.ErrOrderCancelFailed),
-			errors.Is(err, service.ErrOrderAlreadyFinished),
-			errors.Is(err, service.ErrOrderAlreadyCanceled),
-			errors.Is(err, service.ErrOrderAlreadyPaid):
-			response.Fail(c, http.StatusConflict, response.CodeOrderCancelConflict, err.Error())
-		default:
-			response.Fail(c, http.StatusInternalServerError, response.CodeOrderCancelFailed, "取消订单失败")
-		}
+		handlerError(c, err, response.CodeOrderCancelConflict, "取消订单失败")
 		return
 	}
 

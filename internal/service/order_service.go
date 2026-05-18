@@ -4,29 +4,99 @@ import (
 	"errors"
 	"fmt"
 	"go-order-inventory/global"
+	"go-order-inventory/internal/apperror"
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
+	"net/http"
 	"time"
 
 	"gorm.io/gorm"
 )
 
+// var (
+// 	ErrProductOffSale    = errors.New("商品已下架")
+// 	ErrInsufficientStock = errors.New("库存不足")
+// 	ErrCreateOrderFailed = errors.New("创建订单失败")
+// 	ErrOrderNotFound     = errors.New("订单不存在")
+
+// 	ErrOrderPayFailed    = errors.New("订单支付失败")
+// 	ErrOrderFinishFailed = errors.New("订单完成失败")
+// 	ErrOrderCancelFailed = errors.New("订单取消失败")
+
+// 	ErrOrderNotPaid         = errors.New("订单未支付")
+// 	ErrOrderAlreadyCanceled = errors.New("订单已取消")
+// 	ErrOrderAlreadyFinished = errors.New("订单已完成")
+// 	ErrOrderAlreadyPaid     = errors.New("订单已支付")
+// )
+
 var (
-	ErrProductOffSale    = errors.New("商品已下架")
-	ErrInsufficientStock = errors.New("库存不足")
-	ErrCreateOrderFailed = errors.New("创建订单失败")
-	ErrOrderNotFound     = errors.New("订单不存在")
+	ErrProductOffSale = apperror.New(
+		http.StatusConflict,
+		response.CodeProductOffSale,
+		"商品已下架",
+	)
 
-	ErrOrderPayFailed    = errors.New("订单支付失败")
-	ErrOrderFinishFailed = errors.New("订单完成失败")
-	ErrOrderCancelFailed = errors.New("订单取消失败")
+	ErrInsufficientStock = apperror.New(
+		http.StatusConflict,
+		response.CodeInsufficientStock,
+		"库存不足",
+	)
 
-	ErrOrderNotPaid         = errors.New("订单未支付")
-	ErrOrderAlreadyCanceled = errors.New("订单已取消")
-	ErrOrderAlreadyFinished = errors.New("订单已完成")
-	ErrOrderAlreadyPaid     = errors.New("订单已支付")
+	ErrCreateOrderFailed = apperror.New(
+		http.StatusConflict,
+		response.CodeCreateOrderFailed,
+		"创建订单失败",
+	)
+
+	ErrOrderNotFound = apperror.New(
+		http.StatusNotFound,
+		response.CodeOrderNotFound,
+		"订单不存在",
+	)
+
+	ErrOrderPayFailed = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderPayConflict,
+		"订单支付失败",
+	)
+
+	ErrOrderFinishFailed = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderFinishConflict,
+		"订单完成失败",
+	)
+
+	ErrOrderCancelFailed = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderCancelConflict,
+		"订单取消失败",
+	)
+
+	ErrOrderNotPaid = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderNotPaid,
+		"订单未支付",
+	)
+
+	ErrOrderAlreadyCanceled = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderAlreadyCanceled,
+		"订单已取消",
+	)
+
+	ErrOrderAlreadyFinished = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderAlreadyFinished,
+		"订单已完成",
+	)
+
+	ErrOrderAlreadyPaid = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderAlreadyPaid,
+		"订单已支付",
+	)
 )
 
 func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {

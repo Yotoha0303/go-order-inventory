@@ -1,14 +1,20 @@
 package service
 
 import (
-	"errors"
 	"go-order-inventory/global"
+	"go-order-inventory/internal/apperror"
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
+	"go-order-inventory/internal/response"
+	"net/http"
 )
 
 var (
-	ErrCreateStockLogFailed = errors.New("创建库存日志失败")
+	ErrCreateStockLogFailed = apperror.New(
+		http.StatusNotFound,
+		response.CodeCreateStockLogFailed,
+		"创建库存日志失败",
+	)
 )
 
 func CreateStockLog(log *model.StockLog) error {

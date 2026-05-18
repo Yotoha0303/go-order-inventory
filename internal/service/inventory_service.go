@@ -3,18 +3,37 @@ package service
 import (
 	"errors"
 	"go-order-inventory/global"
+	"go-order-inventory/internal/apperror"
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
+	"go-order-inventory/internal/response"
+	"net/http"
 
 	"gorm.io/gorm"
 )
 
 var (
-	ErrInitInventoryFailed = errors.New("初始化库存失败")
-	ErrInitInventoryExists = errors.New("库存已初始化")
-	ErrInventoryNotFound   = errors.New("库存未找到")
-	ErrInvalidAddQuantity  = errors.New("增加的库存数量必须大于0")
+	ErrInitInventoryFailed = apperror.New(
+		http.StatusNotFound,
+		response.CodeInitInventoryFailed,
+		"初始化库存失败",
+	)
+	ErrInitInventoryExists = apperror.New(
+		http.StatusConflict,
+		response.CodeInitInventoryExists,
+		"库存已初始化",
+	)
+	ErrInventoryNotFound = apperror.New(
+		http.StatusNotFound,
+		response.CodeInventoryNotFound,
+		"库存未找到",
+	)
+	ErrInvalidAddQuantity = apperror.New(
+		http.StatusBadRequest,
+		response.CodeInventoryInvalidQuantity,
+		"增加的库存数量必须大于0",
+	)
 )
 
 func InitInventory(req *request.InitInventoryRequest) error {

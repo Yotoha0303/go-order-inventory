@@ -8,9 +8,10 @@ const (
 	CodeCreateProductFailed    = 1103
 	CodeProductNotFound        = 1104
 	CodeProductOnsaleFailed    = 1105
-	CodeProductOffsaleFailed   = 1106
-	CodeQueryProductFailed     = 1107
-	CodeQueryProductListFailed = 1108
+	CodeProductOffSale         = 1106
+	CodeProductOffsaleFailed   = 1107
+	CodeQueryProductFailed     = 1108
+	CodeQueryProductListFailed = 1109
 )
 
 const (
@@ -39,4 +40,8 @@ const (
 	CodeOrderCancelFailed        = 4009
 	CodeQueryOrderListFailed     = 4010
 	CodeQueryOrderDetailNotFound = 4011
+	CodeOrderNotPaid             = 4012
+	CodeOrderAlreadyCanceled     = 4013
+	CodeOrderAlreadyFinished     = 4014
+	CodeOrderAlreadyPaid         = 4015
 )
