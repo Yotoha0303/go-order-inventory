@@ -48,13 +48,13 @@ var (
 
 	ErrProductOnSaleFailed = apperror.New(
 		http.StatusConflict,
-		response.CodeProductOnsaleFailed,
+		response.CodeProductOnSaleFailed,
 		"上架商品失败",
 	)
 
 	ErrProductOffSaleFailed = apperror.New(
 		http.StatusConflict,
-		response.CodeProductOffsaleFailed,
+		response.CodeProductOffSaleFailed,
 		"下架商品失败",
 	)
 )

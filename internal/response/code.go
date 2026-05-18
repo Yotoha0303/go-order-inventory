@@ -6,9 +6,9 @@ const (
 
 	CodeCreateProductFailed    = 1103
 	CodeProductNotFound        = 1104
-	CodeProductOnsaleFailed    = 1105
+	CodeProductOnSaleFailed    = 1105
 	CodeProductOffSale         = 1106
-	CodeProductOffsaleFailed   = 1107
+	CodeProductOffSaleFailed   = 1107
 	CodeQueryProductFailed     = 1108
 	CodeQueryProductListFailed = 1109
 )
