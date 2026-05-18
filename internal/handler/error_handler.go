@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func handlerError(c *gin.Context, err error, fallbackCode int, fallbackMsg string) {
+func handleError(c *gin.Context, err error, fallbackCode int, fallbackMsg string) {
 	if appErr, ok := apperror.FromError(err); ok {
 		response.Fail(c, appErr.HTTPStatus, appErr.Code, appErr.Message)
 		return
