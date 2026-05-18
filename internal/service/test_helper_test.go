@@ -1,9 +1,11 @@
 package service_test
 
 import (
+	"go-order-inventory/config"
 	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/pkg/database"
+	"log"
 	"sync"
 	"testing"
 
@@ -19,7 +21,12 @@ func setupTestDB(t *testing.T) {
 	testDBOnce.Do(func() {
 		_ = godotenv.Load("../../.env")
 
-		global.DB, testDBInitErr = database.InitTestDB()
+		cfg, err := config.LoadConfig("../../config.yml")
+		if err != nil {
+			log.Fatalf("load config failed:%v", err)
+		}
+
+		global.DB, testDBInitErr = database.InitTestDB(cfg.MySQL)
 		if testDBInitErr != nil {
 			return
 		}
