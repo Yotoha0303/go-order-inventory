@@ -12,9 +12,7 @@ import (
 
 func InitRedis(cfg config.RedisConfig) (*redis.Client, error) {
 
-	// addr := os.Getenv("REDIS_ADDR")
 	password := os.Getenv("REDIS_PASSWORD")
-	// dbStr := os.Getenv("REDIS_DB")
 
 	if cfg.Addr == "" {
 		return nil, fmt.Errorf("redis addr missing")

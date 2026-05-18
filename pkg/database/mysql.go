@@ -12,13 +12,12 @@ import (
 func InitDB(cfg config.MySQLConfig) (*gorm.DB, error) {
 
 	dbPassword := os.Getenv("MYSQL_PASSWORD")
-	dbDatabase := os.Getenv("MYSQL_TEST_NAME")
 
-	if cfg.User == "" || dbPassword == "" || cfg.Host == "" || cfg.Port == "" || dbDatabase == "" {
+	if cfg.User == "" || dbPassword == "" || cfg.Host == "" || cfg.Port == "" || cfg.Database == "" {
 		return nil, fmt.Errorf("database config missing")
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfg.User, dbPassword, cfg.Host, cfg.Port, dbDatabase)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfg.User, dbPassword, cfg.Host, cfg.Port, cfg.Database)
 
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{})
 }

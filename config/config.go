@@ -23,7 +23,7 @@ type MySQLConfig struct {
 	Password string `yaml:"password"`
 	Host     string `yaml:"host"`
 	Port     string `yaml:"port"`
-	Database string `yaml:"dbname"`
+	Database string `yaml:"database"`
 }
 
 type RedisConfig struct {
