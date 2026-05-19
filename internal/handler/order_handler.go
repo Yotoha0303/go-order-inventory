@@ -39,12 +39,18 @@ func GetOrderByID(c *gin.Context) {
 		return
 	}
 
-	order, err := service.GetOrderByID(id)
+	order, orderItems, err := service.GetOrderByID(id)
 	if err != nil {
 		handleError(c, err, response.CodeQueryOrderDetailFailed, "查询订单详情失败")
 		return
 	}
-	response.Success(c, order)
+
+	orderDetail := response.OrderDetailResponse{
+		Order: order,
+		Items: orderItems,
+	}
+
+	response.Success(c, orderDetail)
 }
 
 func PayOrder(c *gin.Context) {

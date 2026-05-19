@@ -24,7 +24,7 @@ func ListStockLogs(c *gin.Context) {
 
 	stockLogs, err := service.ListStockLogsByProductID(productID)
 	if err != nil {
-		handleError(c, err, response.CodeCreateStockLogFailed, "库存流水日志失败")
+		handleError(c, err, response.CodeQueryStockLogFailed, "库存流水日志失败")
 		return
 	}
 	response.Success(c, stockLogs)

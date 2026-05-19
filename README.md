@@ -244,54 +244,19 @@ product:detail:{product_id}
 
 ## 12. 接口清单
 
-### 健康检查
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | /ping | 健康检查 |
-
-### 商品接口
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | /api/v1/products | 创建商品 |
-| GET | /api/v1/products | 查询商品列表 |
-| GET | /api/v1/products/:id | 查询商品详情 |
-| PATCH | /api/v1/products/:id/on-sale | 商品上架 |
-| PATCH | /api/v1/products/:id/off-sale | 商品下架 |
-
-### 库存接口
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | /api/v1/inventory/init | 初始化库存 |
-| POST | /api/v1/inventory/add | 增加库存 |
-| GET | /api/v1/inventory/products/:product_id | 查询商品库存 |
-| GET | /api/v1/stock-logs | 查询库存流水 |
-
-### 订单接口
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | /api/v1/orders | 创建订单 |
-| GET | /api/v1/orders | 查询订单列表 |
-| GET | /api/v1/orders/:id | 查询订单详情 |
-| PATCH | /api/v1/orders/:id/pay | 支付订单 |
-| PATCH | /api/v1/orders/:id/finish | 完成订单 |
-| PATCH | /api/v1/orders/:id/cancel | 取消订单 |
-
-完整接口说明见：[docs/api_list.md](docs/api_list.md)
+接口说明详见：[docs/api_list.md](docs/api_list.md)
 
 ## 13. 环境变量
 
 项目通过 `.env` 读取数据库配置：
 
 ```env
-DB_USER=root
-DB_PASSWORD=your_password
-DB_URL=127.0.0.1
-DB_PORT=3306
-DB_NAME=go-order-inventory
+# runtime
+MYSQL_PASSWORD=your-password
+REDIS_PASSWORD=
+# test
+MYSQL_TEST_PASSWORD=your-password
+MYSQL_TEST_DATABASE=go_order_inventory_test
 ```
 
 服务端口配置在 `config.yml`：
@@ -299,6 +264,17 @@ DB_NAME=go-order-inventory
 ```yaml
 server:
   port: 8082
+
+mysql:
+  user: root
+  host: 127.0.0.1
+  port: "3306"
+  database: go_order_inventory
+
+redis:
+  addr: 127.0.0.1:6379
+  db: 0
+
 ```
 
 ## 14. 启动方式
@@ -313,6 +289,14 @@ go mod tidy
 
 ```bash
 go run cmd/main.go
+```
+
+Docker 启动：
+
+本项目依赖 MySQL 和 Redis 的依赖，需要安装依赖后才能启动项目
+
+```bash
+docker compose up -d
 ```
 
 默认访问地址：

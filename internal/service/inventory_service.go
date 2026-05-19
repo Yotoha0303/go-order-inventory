@@ -15,7 +15,7 @@ import (
 
 var (
 	ErrInitInventoryFailed = apperror.New(
-		http.StatusNotFound,
+		http.StatusInternalServerError,
 		response.CodeInitInventoryFailed,
 		"初始化库存失败",
 	)
@@ -34,6 +34,11 @@ var (
 		response.CodeInventoryInvalidQuantity,
 		"增加的库存数量必须大于0",
 	)
+)
+
+const (
+	addInventoryRemarkPrefix  = "手动入库：补充"
+	initInventoryRemarkPrefix = "初始化库存："
 )
 
 func InitInventory(req *request.InitInventoryRequest) error {
@@ -69,7 +74,7 @@ func InitInventory(req *request.InitInventoryRequest) error {
 			AfterQuantity:  *req.StockQuantity,
 			ChangeQuantity: *req.StockQuantity,
 			BizType:        model.StockBizInit,
-			Remark:         "初始化库存:" + product.Name,
+			Remark:         initInventoryRemarkPrefix + product.Name,
 		}
 
 		if err := dao.CreateStockLog(tx, log); err != nil {
@@ -126,7 +131,7 @@ func AddInventory(req request.AddInventoryRequest) error {
 			AfterQuantity:  afterQuantity,
 			ChangeQuantity: req.Quantity,
 			BizType:        model.StockBizManualAdd,
-			Remark:         "手动入库：补充" + product.Name,
+			Remark:         addInventoryRemarkPrefix + product.Name,
 		}
 
 		err = dao.CreateStockLog(tx, log)

@@ -188,24 +188,21 @@ func generateOrderNo() string {
 	return fmt.Sprintf("ORD%d", time.Now().UnixNano())
 }
 
-func GetOrderByID(id int64) (*response.OrderDetailResponse, error) {
+func GetOrderByID(id int64) (*model.Order, []*model.OrderItem, error) {
 	order, err := dao.GetOrderByID(global.DB, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrOrderNotFound
+			return nil, nil, ErrOrderNotFound
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	items, err := dao.ListOrderItemsByOrderID(global.DB, id)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &response.OrderDetailResponse{
-		Order: order,
-		Items: items,
-	}, nil
+	return order, items, nil
 }
 
 func ListOrders() ([]*model.Order, error) {
