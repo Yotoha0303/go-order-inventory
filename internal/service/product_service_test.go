@@ -163,6 +163,10 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 		t.Fatal("expected product not nil")
 	}
 
+	if product.ID <= 0 {
+		t.Fatalf("expected product ID > 0, got %d", product.ID)
+	}
+
 	if product.Name != req.Name {
 		t.Fatalf("expected name %q, got %q", req.Name, product.Name)
 	}
@@ -181,6 +185,15 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 
 	if product.Status != model.ProductStatusOffSale {
 		t.Fatalf("expected status off-sale, got %d", product.Status)
+	}
+
+	var saved model.Product
+	if err := global.DB.First(&saved, product.ID).Error; err != nil {
+		t.Fatalf("query product failed: %v", err)
+	}
+
+	if saved.Name != req.Name || saved.Description != req.Description || saved.PriceFen != req.PriceFen || saved.Status != model.ProductStatusOffSale {
+		t.Fatalf("saved record mismatch, got %+v", saved)
 	}
 }
 
