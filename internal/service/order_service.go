@@ -167,7 +167,7 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 			}
 		}
 
-		if err := tx.Model(&model.Order{}).Where("id = ?", order.ID).Update("total_amount_fen", totalAmountFen).Error; err != nil {
+		if err := dao.PatchOrderTotalPriceFen(tx, order.ID, totalAmountFen); err != nil {
 			return err
 		}
 

@@ -71,16 +71,15 @@ func TestCreateOrder_Success(t *testing.T) {
 	}
 }
 
-func TestPendingAndPayOrder_Success(t *testing.T) {
+func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 	setupTestDB(t)
 
 	var initQuantity int64 = 10
-	var initPriceFen int64 = 100
-
-	p := seedProduct(t, "test pending and pay", initPriceFen, model.ProductStatusOnSale)
-	seedInventory(t, p.ID, initQuantity)
-
+	var PriceFen int64 = 100
 	var orderedQuantity int64 = 1
+
+	p := seedProduct(t, "pay-order-product", PriceFen, model.ProductStatusOnSale)
+	seedInventory(t, p.ID, initQuantity)
 
 	order, err := service.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
@@ -91,50 +90,64 @@ func TestPendingAndPayOrder_Success(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("expected order created success,%v", err)
+		t.Fatalf("create order failed: %v", err)
 	}
 
 	if order.Status != model.OrderStatusPending {
-		t.Fatalf("expected status pending,got %d", order.Status)
+		t.Fatalf("expected order status pending,got %d", order.Status)
 	}
-	var inv model.Inventory
-	if err := global.DB.Where("product_id = ?", p.ID).First(&inv).Error; err != nil {
-		t.Fatalf("expected inventory record exist,got %v", err)
-	}
-
-	if inv.StockQuantity != initQuantity-orderedQuantity {
-		t.Fatalf("expected stock quantity %d, got %d", initQuantity-orderedQuantity, inv.StockQuantity)
+	var invBeforePay model.Inventory
+	if err := global.DB.Where("product_id = ?", p.ID).First(&invBeforePay).Error; err != nil {
+		t.Fatalf("query inventory before pay failed: %v", err)
 	}
 
-	var stockLogPayBefore model.StockLog
-	if err := global.DB.Where("product_id = ? AND biz_id = ?", p.ID, order.ID).First(&stockLogPayBefore).Error; err != nil {
-		t.Fatalf("expected inventory record exist,got %v", err)
+	expectedStockAfterCreate := initQuantity - orderedQuantity
+	if invBeforePay.StockQuantity != expectedStockAfterCreate {
+		t.Fatalf("expected stock quantity %d after create order, got %d", expectedStockAfterCreate, invBeforePay.StockQuantity)
 	}
 
-	if -stockLogPayBefore.ChangeQuantity != orderedQuantity {
-		t.Fatalf("expected change quantity equal orderedQuantity,got %d", orderedQuantity)
+	var stockLogCountBeforePay int64
+	if err := global.DB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ? ", p.ID, order.ID).Count(&stockLogCountBeforePay).Error; err != nil {
+		t.Fatalf("count stock logs before pay failed: %v", err)
 	}
 
-	if stockLogPayBefore.BizType != model.StockBizOrderDeduct {
-		t.Fatalf("expected biz type is 3,got %v", err)
+	if stockLogCountBeforePay != 1 {
+		t.Fatalf("expected 1 stock log after create order,got %d", stockLogCountBeforePay)
 	}
 
 	if err := service.PayOrder(order.ID); err != nil {
-		t.Fatalf("expected order pay successes,got %v", err)
+		t.Fatalf("pay order failed:%v", err)
 	}
 
-	var stockLogPayAfter model.StockLog
-	if err := global.DB.Where("product_id = ? AND biz_id = ?", p.ID, order.ID).First(&stockLogPayAfter).Error; err != nil {
-		t.Fatalf("expected inventory record exist,got %v", err)
+	var paidOrder model.Order
+	if err := global.DB.First(&paidOrder, order.ID).Error; err != nil {
+		t.Fatalf("query paid order failed:%v", err)
 	}
 
-	if stockLogPayAfter.AfterQuantity == stockLogPayBefore.BeforeQuantity {
-		t.Fatalf("expected stock log after quantity equal before quantity,got %v", err)
+	if paidOrder.Status != model.OrderStatusPaid {
+		t.Fatalf("expected order status paid,got %d", paidOrder.Status)
 	}
 
-	var orderQuery model.Order
-	if err := global.DB.Where("id = ? AND status = ?", order.ID, model.OrderStatusPaid).First(&orderQuery).Error; err != nil {
-		t.Fatalf("expected order exist,got %v", err)
+	if paidOrder.PaidAt == nil {
+		t.Fatalf("expected paid_at not nil")
+	}
+
+	var invAfterPay model.Inventory
+	if err := global.DB.Where("product_id = ?", p.ID).First(&invAfterPay).Error; err != nil {
+		t.Fatalf("query inventory after pay failed:%v", err)
+	}
+
+	if invAfterPay.StockQuantity != expectedStockAfterCreate {
+		t.Fatalf("expected stock unchanged after pay:%d,got %d", expectedStockAfterCreate, invAfterPay.StockQuantity)
+	}
+
+	var stockLogCountAfterPay int64
+	if err := global.DB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ?", p.ID, order.ID).Count(&stockLogCountAfterPay).Error; err != nil {
+		t.Fatalf("count stock logs after pay failed: %v", err)
+	}
+
+	if stockLogCountAfterPay != stockLogCountBeforePay {
+		t.Fatalf("expected stock log count unchange after pay,before=%d after=%d", stockLogCountBeforePay, stockLogCountAfterPay)
 	}
 
 }

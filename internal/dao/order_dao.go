@@ -38,3 +38,7 @@ func PatchOrderStatus(db *gorm.DB, orderID int64, fromStatus int8, toStatus int8
 		})
 	return result.RowsAffected, result.Error
 }
+
+func PatchOrderTotalPriceFen(db *gorm.DB, orderID int64, totalPriceFen int64) error {
+	return db.Model(&model.Order{}).Where("id = ?", orderID).Update("total_amount_fen", totalPriceFen).Error
+}
