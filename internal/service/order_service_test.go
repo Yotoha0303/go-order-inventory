@@ -278,7 +278,8 @@ func TestPaidOrder_UnableCancel_ReturnsError(t *testing.T) {
 	order := seedPaidOrder(t)
 	db := global.DB
 
-	if err := service.CancelOrder(order.ID); err == nil {
+	err := service.CancelOrder(order.ID)
+	if !errors.Is(err, service.ErrOrderAlreadyPaid) {
 		t.Fatalf("expected order cancel failed,got %v", err)
 	}
 
@@ -303,7 +304,8 @@ func TestFinishedOrder_UnableCancel_ReturnsError(t *testing.T) {
 
 	order := seedFinishedOrder(t)
 
-	if err := service.CancelOrder(order.ID); err == nil {
+	err := service.CancelOrder(order.ID)
+	if !errors.Is(err, service.ErrOrderAlreadyFinished) {
 		t.Fatalf("expected order cancel failed,got %d", err)
 	}
 
@@ -313,7 +315,7 @@ func TestFinishedOrder_UnableCancel_ReturnsError(t *testing.T) {
 	}
 
 	if got.Status == model.OrderStatusCancelled {
-		t.Fatalf("expected order status is %d,got %d", model.OrderStatusPaid, got.Status)
+		t.Fatalf("expected order status cancelled,got %d", got.Status)
 	}
 
 	if got.CancelledAt != nil {
@@ -321,14 +323,68 @@ func TestFinishedOrder_UnableCancel_ReturnsError(t *testing.T) {
 	}
 }
 
-func CancelOrder_CancelledOrder_Idempotent(t *testing.T) {
+func TestCancelOrder_CancelledOrder_Idempotent(t *testing.T) {
 	setupTestDB(t)
 
-	order := seedCancelledOrder(t)
+	ctx := seedPendingOrderContext(t)
+	db := global.DB
 
-	err := service.CancelOrder(order.ID)
-
-	if err != nil || err == nil {
-		t.Fatalf("order cancel failed: %v", err)
+	if err := service.CancelOrder(ctx.Order.ID); err != nil {
+		t.Fatalf("order cancenl failed: %v", err)
 	}
+
+	var invAfterFirstCancel model.Inventory
+	if err := db.Where("product_id = ?", ctx.Product.ID).First(&invAfterFirstCancel).Error; err != nil {
+		t.Fatalf("query inventory after first cancel failed: %v", err)
+	}
+
+	var rollbackLogCountAfterFirstCancel int64
+	if err := db.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ? AND biz_type = ?", ctx.Product.ID, ctx.Order.ID, model.StockBizOrderRollback).Count(&rollbackLogCountAfterFirstCancel).Error; err != nil {
+		t.Fatalf("count rollback stock logs after first cancel failed: %v", err)
+	}
+
+	var orderAfterFirstCancel model.Order
+	if err := db.First(&orderAfterFirstCancel, ctx.Order.ID).Error; err != nil {
+		t.Fatalf("query order after first cancel failed: %v", err)
+	}
+	if orderAfterFirstCancel.Status != model.OrderStatusCancelled {
+		t.Fatalf("expected order status cancelled after first cancel, got %d", orderAfterFirstCancel.Status)
+	}
+	if orderAfterFirstCancel.CancelledAt == nil {
+		t.Fatalf("expected cancelled_at not nil after first cancel")
+	}
+
+	if err := service.CancelOrder(ctx.Order.ID); err != nil {
+		t.Fatalf("order cancenl failed: %v", err)
+	}
+
+	var invAfterSecondCancel model.Inventory
+	if err := db.Where("product_id = ?", ctx.Product.ID).First(&invAfterSecondCancel).Error; err != nil {
+		t.Fatalf("query inventory after second cancel failed: %v", err)
+	}
+
+	if invAfterSecondCancel.StockQuantity != invAfterFirstCancel.StockQuantity {
+		t.Fatalf("expected inventory unchanged on second cancel, before=%d after=%d", invAfterFirstCancel.StockQuantity, invAfterSecondCancel.StockQuantity)
+	}
+
+	var rollbackLogCountAfterSecondCancel int64
+	if err := db.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ? AND biz_type = ?", ctx.Product.ID, ctx.Order.ID, model.StockBizOrderRollback).Count(&rollbackLogCountAfterSecondCancel).Error; err != nil {
+		t.Fatalf("count rollback stock logs after second cancel failed: %v", err)
+	}
+
+	if rollbackLogCountAfterFirstCancel != rollbackLogCountAfterSecondCancel {
+		t.Fatalf("expected rollback log count unchanged on second cancel, before=%d after=%d", rollbackLogCountAfterFirstCancel, rollbackLogCountAfterSecondCancel)
+	}
+
+	var orderAfterSecondCancel model.Order
+	if err := db.First(&orderAfterSecondCancel, ctx.Order.ID).Error; err != nil {
+		t.Fatalf("query order after second cancel failed: %v", err)
+	}
+	if orderAfterSecondCancel.Status != model.OrderStatusCancelled {
+		t.Fatalf("expected order status still cancelled after second cancel, got %d", orderAfterSecondCancel.Status)
+	}
+	if orderAfterSecondCancel.CancelledAt == nil {
+		t.Fatalf("expected cancelled_at not nil after second cancel")
+	}
+
 }

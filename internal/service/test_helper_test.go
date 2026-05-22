@@ -171,7 +171,7 @@ func seedFinishedOrder(t *testing.T) *model.Order {
 func seedCancelledOrder(t *testing.T) *model.Order {
 	t.Helper()
 
-	order := seedPaidOrder(t)
+	order := seedPendingOrder(t)
 
 	if err := service.CancelOrder(order.ID); err != nil {
 		t.Fatalf("finish order failed: %v", err)
