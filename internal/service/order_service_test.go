@@ -200,3 +200,50 @@ func TestPayOrder_AlreadyPaid_ReturnsError(t *testing.T) {
 		t.Fatalf("expected order status still paid,got %d", got.Status)
 	}
 }
+
+func TestFinishOrder_PendingOrder_ReturnsNotPaidError(t *testing.T) {
+	setupTestDB(t)
+
+	order := seedPendingOrder(t)
+
+	err := service.FinishOrder(order.ID)
+	if !errors.Is(err, service.ErrOrderNotPaid) {
+		t.Fatalf("expected order unpaid is not finished,got %v", err)
+	}
+
+	var got model.Order
+	if err := global.DB.First(&got, order.ID).Error; err != nil {
+		t.Fatalf("query order failed: %v", err)
+	}
+
+	if got.Status != model.OrderStatusPending {
+		t.Fatalf("expected order status unpaid,got %d", got.Status)
+	}
+
+	if got.CompletedAt != nil {
+		t.Fatalf("expected completed_at nil,got %v", got.CompletedAt)
+	}
+}
+
+func TestCancelOrder_Success(t *testing.T) {
+	setupTestDB(t)
+
+	order := seedPendingOrder(t)
+
+	if err := service.CancelOrder(order.ID); err != nil {
+		t.Fatalf("expected order cancel success,got %v", err)
+	}
+
+	var got model.Order
+	if err := global.DB.First(&got, order.ID).Error; err != nil {
+		t.Fatalf("query order failed: %v", err)
+	}
+
+	if got.Status != model.OrderStatusCancelled {
+		t.Fatalf("expected order status already cancel,got %d", got.Status)
+	}
+
+	if got.CancelledAt == nil {
+		t.Fatalf("expected order cancelled_at not null,got %v", got.CancelledAt)
+	}
+}
