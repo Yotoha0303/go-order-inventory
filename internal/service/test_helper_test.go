@@ -4,6 +4,8 @@ import (
 	"go-order-inventory/config"
 	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
+	"go-order-inventory/internal/request"
+	"go-order-inventory/internal/service"
 	"go-order-inventory/pkg/database"
 	"log"
 	"sync"
@@ -82,4 +84,185 @@ func seedInventory(t *testing.T, productID int64, qty int64) *model.Inventory {
 		t.Fatalf("seed inventory failed: %v", err)
 	}
 	return inv
+}
+
+func seedPendingOrder(t *testing.T, name string, status int8, priceFen, qty, orderQty int64) *model.Order {
+	t.Helper()
+
+	db := global.DB
+
+	product := &model.Product{
+		Name:        name,
+		Description: name + "desc",
+		Status:      model.ProductStatusOnSale,
+		PriceFen:    priceFen,
+	}
+
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatalf("create product failed: %v", err)
+	}
+
+	inventory := &model.Inventory{
+		ProductID:     product.ID,
+		StockQuantity: qty,
+	}
+
+	if err := db.Create(&inventory).Error; err != nil {
+		t.Fatalf("create inventory failed: %v", err)
+	}
+
+	order, err := service.CreateOrder(request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID,
+				Quantity: orderQty},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create order failed: %v", err)
+	}
+
+	return order
+}
+
+func seedPaidOrder(t *testing.T) *model.Order {
+	t.Helper()
+
+	db := global.DB
+	name := "order paid test"
+	priceFen := int64(100)
+	qty := int64(50)
+	orderQty := int64(25)
+
+	product := &model.Product{
+		Name:        name,
+		Description: name + "desc",
+		Status:      model.ProductStatusOnSale,
+		PriceFen:    priceFen,
+	}
+
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatalf("create product failed: %v", err)
+	}
+
+	inventory := &model.Inventory{
+		ProductID:     product.ID,
+		StockQuantity: qty,
+	}
+
+	if err := db.Create(&inventory).Error; err != nil {
+		t.Fatalf("create inventory failed: %v", err)
+	}
+
+	order, err := service.CreateOrder(request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: orderQty},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create order failed: %v", err)
+	}
+
+	if err := service.PayOrder(order.ID); err != nil {
+		t.Fatalf("pay order failed: %v", err)
+	}
+
+	return order
+}
+
+func seedFinishedOrder(t *testing.T) *model.Order {
+	t.Helper()
+
+	db := global.DB
+	name := "order paid test"
+	priceFen := int64(100)
+	qty := int64(50)
+	orderQty := int64(25)
+
+	product := &model.Product{
+		Name:        name,
+		Description: name + "desc",
+		Status:      model.ProductStatusOnSale,
+		PriceFen:    priceFen,
+	}
+
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatalf("create product failed: %v", err)
+	}
+
+	inventory := &model.Inventory{
+		ProductID:     product.ID,
+		StockQuantity: qty,
+	}
+
+	if err := db.Create(&inventory).Error; err != nil {
+		t.Fatalf("create inventory failed: %v", err)
+	}
+
+	order, err := service.CreateOrder(request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: orderQty},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create order failed: %v", err)
+	}
+
+	if err := service.PayOrder(order.ID); err != nil {
+		t.Fatalf("pay order failed: %v", err)
+	}
+
+	if err := service.FinishOrder(order.ID); err != nil {
+		t.Fatalf("finish order failed: %v", err)
+	}
+
+	return order
+}
+
+func seedCancelledOrder(t *testing.T) *model.Order {
+	t.Helper()
+
+	db := global.DB
+	name := "order paid test"
+	priceFen := int64(100)
+	qty := int64(50)
+	orderQty := int64(25)
+
+	product := &model.Product{
+		Name:        name,
+		Description: name + "desc",
+		Status:      model.ProductStatusOnSale,
+		PriceFen:    priceFen,
+	}
+
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatalf("create product failed: %v", err)
+	}
+
+	inventory := &model.Inventory{
+		ProductID:     product.ID,
+		StockQuantity: qty,
+	}
+
+	if err := db.Create(&inventory).Error; err != nil {
+		t.Fatalf("create inventory failed: %v", err)
+	}
+
+	order, err := service.CreateOrder(request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: orderQty},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create order failed: %v", err)
+	}
+
+	if err := service.PayOrder(order.ID); err != nil {
+		t.Fatalf("pay order failed: %v", err)
+	}
+
+	if err := service.CancelOrder(order.ID); err != nil {
+		t.Fatalf("finish order failed: %v", err)
+	}
+
+	return order
 }

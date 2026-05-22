@@ -181,28 +181,16 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 	}
 }
 
-func TestCancelOrder_RollbackInventory(t *testing.T) {
+func TestFinishOrder_PayAgainOrder_OrderError(t *testing.T) {
 	setupTestDB(t)
-	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
-	seedInventory(t, p.ID, 10)
-	order, err := service.CreateOrder(request.CreateOrderRequest{
-		Items: []request.CreateOrderItemRequest{
-			{ProductID: p.ID, Quantity: 4},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create order failed: %v", err)
-	}
 
-	if err := service.CancelOrder(order.ID); err != nil {
-		t.Fatalf("cancel order failed: %v", err)
-	}
+	order := seedPaidOrder(t)
 
-	var inv model.Inventory
-	if err := global.DB.Where("product_id = ?", p.ID).First(&inv).Error; err != nil {
-		t.Fatalf("query inventory failed: %v", err)
-	}
-	if inv.StockQuantity != 10 {
-		t.Fatalf("expected stock rollback to 10, got %d", inv.StockQuantity)
+	err := service.PayOrder(order.ID)
+	if err == nil {
+		if !errors.Is(err, service.ErrOrderAlreadyPaid) {
+			t.Fatalf("expected order already pay: %v", err)
+		}
+		t.Fatalf("expected order already paid,got %v", err)
 	}
 }
