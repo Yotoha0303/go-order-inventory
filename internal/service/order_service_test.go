@@ -181,16 +181,22 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 	}
 }
 
-func TestFinishOrder_PayAgainOrder_OrderError(t *testing.T) {
+func TestPayOrder_AlreadyPaid_ReturnsError(t *testing.T) {
 	setupTestDB(t)
 
 	order := seedPaidOrder(t)
 
 	err := service.PayOrder(order.ID)
-	if err == nil {
-		if !errors.Is(err, service.ErrOrderAlreadyPaid) {
-			t.Fatalf("expected order already pay: %v", err)
-		}
-		t.Fatalf("expected order already paid,got %v", err)
+	if !errors.Is(err, service.ErrOrderAlreadyPaid) {
+		t.Fatalf("expected ErrOrderAlreadyPaid,got %v", err)
+	}
+
+	var got model.Order
+	if err := global.DB.First(&got, order.ID).Error; err != nil {
+		t.Fatalf("query order failed: %v", err)
+	}
+
+	if got.Status != model.OrderStatusPaid {
+		t.Fatalf("expected order status still paid,got %d", got.Status)
 	}
 }
