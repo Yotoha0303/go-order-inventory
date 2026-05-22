@@ -228,14 +228,15 @@ func TestFinishOrder_PendingOrder_ReturnsNotPaidError(t *testing.T) {
 func TestCancelOrder_Success(t *testing.T) {
 	setupTestDB(t)
 
-	order := seedPendingOrder(t)
+	db := global.DB
+	ctx := seedPendingOrderContext(t)
 
-	if err := service.CancelOrder(order.ID); err != nil {
+	if err := service.CancelOrder(ctx.Order.ID); err != nil {
 		t.Fatalf("expected order cancel success,got %v", err)
 	}
 
 	var got model.Order
-	if err := global.DB.First(&got, order.ID).Error; err != nil {
+	if err := db.First(&got, ctx.Order.ID).Error; err != nil {
 		t.Fatalf("query order failed: %v", err)
 	}
 
@@ -245,5 +246,89 @@ func TestCancelOrder_Success(t *testing.T) {
 
 	if got.CancelledAt == nil {
 		t.Fatalf("expected order cancelled_at not null,got %v", got.CancelledAt)
+	}
+
+	var inv model.Inventory
+	if err := db.Where("product_id = ?", ctx.Product.ID).First(&inv).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+
+	if inv.StockQuantity != ctx.InitQty {
+		t.Fatalf("expected product inventory already rollback,got %d", inv.StockQuantity)
+	}
+
+	var rollbackLog model.StockLog
+	if err := db.Where("product_id = ? AND biz_id = ? AND biz_type = ?", ctx.Product.ID, ctx.Order.ID, model.StockBizOrderRollback).Order("created_at DESC").First(&rollbackLog).Error; err != nil {
+		t.Fatalf("query stock log failed: %v", err)
+	}
+
+	if rollbackLog.ChangeQuantity != ctx.OrderQty {
+		t.Fatalf("expected rollback change_quantity=%d,got %d", ctx.OrderQty, rollbackLog.ChangeQuantity)
+	}
+
+	if rollbackLog.AfterQuantity != ctx.InitQty {
+		t.Fatalf("expected stock log after_quantity=%d,got %d", ctx.InitQty, rollbackLog.AfterQuantity)
+	}
+
+}
+
+func TestPaidOrder_UnableCancel_ReturnsError(t *testing.T) {
+	setupTestDB(t)
+
+	order := seedPaidOrder(t)
+	db := global.DB
+
+	if err := service.CancelOrder(order.ID); err == nil {
+		t.Fatalf("expected order cancel failed,got %v", err)
+	}
+
+	var got model.Order
+	if err := db.First(&got, order.ID).Error; err != nil {
+		t.Fatalf("query order failed: %v", err)
+	}
+
+	if got.Status == model.OrderStatusCancelled {
+		t.Fatalf("expected order status is %d,got %d", model.OrderStatusPaid, got.Status)
+	}
+
+	if got.CancelledAt != nil {
+		t.Fatalf("expected order cancel failed,got %v", got.CancelledAt)
+	}
+}
+
+func TestFinishedOrder_UnableCancel_ReturnsError(t *testing.T) {
+	setupTestDB(t)
+
+	db := global.DB
+
+	order := seedFinishedOrder(t)
+
+	if err := service.CancelOrder(order.ID); err == nil {
+		t.Fatalf("expected order cancel failed,got %d", err)
+	}
+
+	var got model.Order
+	if err := db.First(&got, order.ID).Error; err != nil {
+		t.Fatalf("query order failed: %v", err)
+	}
+
+	if got.Status == model.OrderStatusCancelled {
+		t.Fatalf("expected order status is %d,got %d", model.OrderStatusPaid, got.Status)
+	}
+
+	if got.CancelledAt != nil {
+		t.Fatalf("expected order cancel failed,got %v", got.CancelledAt)
+	}
+}
+
+func CancelOrder_CancelledOrder_Idempotent(t *testing.T) {
+	setupTestDB(t)
+
+	order := seedCancelledOrder(t)
+
+	err := service.CancelOrder(order.ID)
+
+	if err != nil || err == nil {
+		t.Fatalf("order cancel failed: %v", err)
 	}
 }

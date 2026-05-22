@@ -161,10 +161,6 @@ func seedFinishedOrder(t *testing.T) *model.Order {
 
 	order := seedPaidOrder(t)
 
-	if err := service.PayOrder(order.ID); err != nil {
-		t.Fatalf("pay order failed: %v", err)
-	}
-
 	if err := service.FinishOrder(order.ID); err != nil {
 		t.Fatalf("finish order failed: %v", err)
 	}
@@ -182,4 +178,58 @@ func seedCancelledOrder(t *testing.T) *model.Order {
 	}
 
 	return order
+}
+
+type seededOrderContext struct {
+	Order    *model.Order
+	Product  *model.Product
+	InitQty  int64
+	OrderQty int64
+}
+
+func seedPendingOrderContext(t *testing.T) seededOrderContext {
+	t.Helper()
+
+	db := global.DB
+	name := "order pending test"
+	priceFen := int64(100)
+	qty := int64(50)
+	orderQty := int64(25)
+
+	product := &model.Product{
+		Name:        name,
+		Description: name + "desc",
+		Status:      model.ProductStatusOnSale,
+		PriceFen:    priceFen,
+	}
+
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatalf("create product failed: %v", err)
+	}
+
+	inventory := &model.Inventory{
+		ProductID:     product.ID,
+		StockQuantity: qty,
+	}
+
+	if err := db.Create(&inventory).Error; err != nil {
+		t.Fatalf("create inventory failed: %v", err)
+	}
+
+	order, err := service.CreateOrder(request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID,
+				Quantity: orderQty},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create order failed: %v", err)
+	}
+
+	return seededOrderContext{
+		Order:    order,
+		Product:  product,
+		InitQty:  qty,
+		OrderQty: orderQty,
+	}
 }
