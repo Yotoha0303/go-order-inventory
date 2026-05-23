@@ -13,7 +13,7 @@ func TestProductDetailCacheKey(t *testing.T) {
 	got := bizcache.ProductDetailCacheKey(1001)
 	want := "product:detail:1001"
 	if got != want {
-		t.Errorf("productDetailCacheKey(1001) = %q, want %q", got, want)
+		t.Fatalf("productDetailCacheKey(1001) = %q, want %q", got, want)
 	}
 
 }
@@ -83,7 +83,7 @@ func TestProductDetailCache_DeleteMiss_WithRedis(t *testing.T) {
 	}
 
 	if p.ID != product.ID || p.Name != product.Name || p.Description != product.Description || p.PriceFen != product.PriceFen || p.Status != product.Status {
-		t.Fatalf("product info failed")
+		t.Fatalf("product mismatch, got %+v, want %+v", p, product)
 	}
 
 	bizcache.DeleteProductDetailCache(ctx, product.ID)
