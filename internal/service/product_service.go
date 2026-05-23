@@ -42,7 +42,7 @@ var (
 	)
 
 	ErrInvalidProductID = apperror.New(
-		http.StatusNotFound,
+		http.StatusBadRequest,
 		response.CodeParameterError,
 		"无效的商品ID",
 	)

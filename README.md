@@ -1,4 +1,4 @@
-# go-order-inventory
+﻿# go-order-inventory
 
 轻量级订单库存管理系统，一个面向 Go 后端求职实战的项目。项目围绕商品、库存、库存流水和订单状态流转展开，重点练习 Gin 接口开发、GORM 数据建模、MySQL 事务、库存扣减一致性和分层代码组织。
 
@@ -277,6 +277,53 @@ redis:
 
 ```
 
+项目可通过 Docker 进行部署， `docker-compose.yml` 
+
+```
+services:
+  mysql:
+    image: mysql:${MYSQL_IMAGE_VERSION:-8.4.8}
+    container_name: go-order-inventory-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-your-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_order_inventory_demo}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docs/sql/sql_table_data_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:${REDIS_IMAGE_VERSION:-7.2-alpine}
+    container_name: go-order-inventory-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
+  redis_data:
+
+```
+
 ## 14. 启动方式
 
 安装依赖：
@@ -316,7 +363,7 @@ curl http://localhost:8082/ping
 运行 Go 测试：
 
 ```bash
-go test ./...
+go test -v ./...
 ```
 
 手动接口测试：
@@ -326,6 +373,12 @@ docs/http/products.http
 docs/http/inventory.http
 docs/http/stock_logs.http
 docs/http/orders.http
+```
+
+Redis 测试：
+
+```bash
+RUN_REDIS_TEST=1 go test -v ./internal/bizcache
 ```
 
 测试计划见：[docs/test_plan.md](docs/test_plan.md)
@@ -350,8 +403,8 @@ docs/http/orders.http
 ## 18. 后续演进方向
 
 - service 层增加更多的测试内容
-- 增加订单幂等控制，避免重复下单或重复取消
 - 使用 App 容器化统一管理依赖，代替 global
 - 优化错误码文档和接口返回示例
 - 增加 Docker Compose，降低本地启动成本
 - 订单中使用雪花 ID 代替时间戳生成 orderNO
+- 创建订单时可引入 client_order_no / idempotency_key，避免重复下单

@@ -18,7 +18,7 @@ import (
 var (
 	ErrProductOffSale = apperror.New(
 		http.StatusConflict,
-		response.CodeProductOffSale,
+		response.CodeProductAlreadyOffSale,
 		"商品已下架",
 	)
 

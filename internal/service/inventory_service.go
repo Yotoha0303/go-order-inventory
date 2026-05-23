@@ -34,6 +34,12 @@ var (
 		response.CodeInventoryInvalidQuantity,
 		"增加的库存数量必须大于0",
 	)
+
+	ErrInvalidStockQuantity = apperror.New(
+		http.StatusBadRequest,
+		response.CodeParameterError,
+		"库存数量不能为负",
+	)
 )
 
 const (
@@ -42,6 +48,14 @@ const (
 )
 
 func InitInventory(req *request.InitInventoryRequest) error {
+	if req.StockQuantity == nil {
+		return ErrInvalidStockQuantity
+	}
+
+	if *req.StockQuantity < 0 {
+		return ErrInvalidStockQuantity
+	}
+
 	product, err := dao.GetProductByID(global.DB, req.ProductID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
