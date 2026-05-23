@@ -21,17 +21,21 @@ func TestProductDetailCacheKey(t *testing.T) {
 func TestProductDetailCache_NoRedis(t *testing.T) {
 	oldRedis := global.Redis
 	global.Redis = nil
+
 	defer func() {
 		global.Redis = oldRedis
 	}()
 
-	product, ok := bizcache.GetProductDetail(context.Background(), 1002)
+	var noExistProductID = int64(1002)
+	ctx := context.Background()
+
+	product, ok := bizcache.GetProductDetail(ctx, noExistProductID)
 	if ok {
 		t.Fatalf("expected cache miss when redis is nil, got hit: %+v", product)
 	}
 
-	bizcache.SetProductDetail(context.Background(), &model.Product{ID: 1002, Name: "test"})
-	bizcache.DeleteProductDetailCache(context.Background(), 1002)
+	bizcache.SetProductDetail(ctx, &model.Product{ID: noExistProductID, Name: "test no redis"})
+	bizcache.DeleteProductDetailCache(ctx, noExistProductID)
 }
 
 func TestProductDetailCache_SetGet_WithRedis(t *testing.T) {
@@ -47,12 +51,16 @@ func TestProductDetailCache_SetGet_WithRedis(t *testing.T) {
 	}
 
 	bizcache.SetProductDetail(ctx, product)
-	_, ok := bizcache.GetProductDetail(ctx, product.ID)
+	got, ok := bizcache.GetProductDetail(ctx, product.ID)
 	if !ok {
 		t.Fatalf("expected product detail cache exist")
 	}
 
-	bizcache.DeleteProductDetailCache(ctx, product.ID)
+	if got.ID != product.ID || got.Name != product.Name || got.Description != product.Description || got.PriceFen != product.PriceFen || got.Status != product.Status {
+		t.Fatalf("product mismatch,got %+v,want %+v", got, product)
+	}
+
+	defer bizcache.DeleteProductDetailCache(ctx, product.ID)
 }
 
 func TestProductDetailCache_DeleteMiss_WithRedis(t *testing.T) {
@@ -89,7 +97,7 @@ func TestProductDetailCache_DeleteMiss_WithRedis(t *testing.T) {
 		t.Fatalf("expected product detail cache not found,got %v", p)
 	}
 
-	bizcache.DeleteProductDetailCache(context.Background(), product.ID)
+	defer bizcache.DeleteProductDetailCache(context.Background(), product.ID)
 }
 
 func TestProductDetailCache_TTL_WithRedis(t *testing.T) {
@@ -117,5 +125,5 @@ func TestProductDetailCache_TTL_WithRedis(t *testing.T) {
 		t.Fatalf("expected ttl <= %v, got %v", bizcache.ProductDetailCacheTTL, ttl)
 	}
 
-	bizcache.DeleteProductDetailCache(context.Background(), product.ID)
+	defer bizcache.DeleteProductDetailCache(context.Background(), product.ID)
 }
