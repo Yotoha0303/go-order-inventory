@@ -4,7 +4,7 @@
 
 ## 1. 项目简介
 
-本项目基于 Go + Gin + GORM + MySQL 实现，提供商品管理、库存管理、库存流水查询、订单创建、订单支付、订单完成和订单取消等能力。
+本项目基于 Go + Gin + GORM + MySQL + Redis 实现，提供商品管理、库存管理、库存流水、订单创建、订单状态流转和商品详情缓存等能力。
 
 项目的目标不是堆功能，而是把常见后端工程能力做扎实：
 
@@ -25,7 +25,29 @@
 - godotenv
 - YAML 配置
 
-## 3. 核心功能
+## 3. 当前实现进度
+
+已完成：
+
+- 商品创建、查询、上下架
+- 库存初始化、增加、查询
+- 库存流水记录
+- 创建订单时扣减库存
+- 库存不足时事务回滚
+- 订单支付、完成、取消
+- 取消待支付订单时回滚库存
+- 订单状态机限制非法流转
+- 商品详情 Redis cache-aside 缓存
+- 商品上架 / 下架时删除缓存
+- Redis 不可用时不影响主流程
+
+未实现，作为后续演进：
+
+- 创建订单 request_id / idempotency_key 幂等控制
+- 更完整的 service 层自动化测试
+- 本地启动脚本优化（依赖就绪检测与一键初始化）
+
+## 4. 核心功能
 
 ### 商品模块
 
@@ -57,7 +79,7 @@
 - 商品详情缓存 cache-aside 
 - 商品上架 / 下架时删除商品详情缓存
 
-## 4. 项目结构
+## 5. 项目结构
 
 ```text
 cmd/                  项目启动入口
@@ -66,19 +88,21 @@ docs/                 项目文档、接口测试文件、SQL 脚本
 docs/http/            REST Client 手动接口测试文件
 docs/sql/             初始化和测试 SQL
 global/               全局资源，如 DB
+internal/apperror/    业务错误定义与错误码映射
+internal/bizcache/    数据缓存
 internal/dao/         数据库访问层
 internal/handler/     HTTP 接口层
 internal/model/       GORM 数据模型
 internal/request/     请求参数结构
 internal/response/    响应结构
 internal/service/     业务逻辑层
-internal/bizcache/    数据缓存
 pkg/database/         MySQL 初始化
 pkg/redis/            Redis 初始化
 router/               路由注册
+docker-compose.yml.example 本地依赖服务编排示例
 ```
 
-## 5. 分层说明
+## 6. 分层说明
 
 项目采用简单的企业后端分层方式：
 
@@ -88,10 +112,12 @@ router/               路由注册
 - model：负责数据库表结构映射
 - request：负责接口入参结构和校验规则
 - response：负责接口响应结构
+- bizcache：负责业务缓存读写、缓存 key 规则和缓存失效
+- apperror：负责业务错误定义、错误码和错误信息封装
 
 核心原则：handler 不写业务规则，service 不直接拼 HTTP 响应，dao 不处理业务状态。
 
-## 6. 数据表设计
+## 7. 数据表设计
 
 当前核心表：
 
@@ -112,7 +138,7 @@ router/               路由注册
 
 详细表结构见：[docs/table_design.md](docs/table_design.md)
 
-## 7. 核心业务规则
+## 8. 核心业务规则
 
 ### 商品规则
 
@@ -146,33 +172,35 @@ router/               路由注册
 
 详细规则见：[docs/business_rules.md](docs/business_rules.md)
 
-## 8. 订单创建事务设计
+## 9. 订单创建事务设计
 
-当前项目使用了 事务 + 行锁 的方式，进行订单创建、订单取消和库存流水创建。
+当前项目在订单创建与取消场景中，使用数据库事务保证订单、库存和库存流水一致性，并通过库存行级锁控制并发扣减。
 
 ### 订单创建
 
 订单创建流程
 
 - 通过当前时间戳生成 orderNO，并创建订单
-- 遍历和查询商品品类
-- 使用行锁锁定需要查询的商品库存表，并计算调整前后的商品库存
+- 遍历订单商品项
+- 对每个商品库存记录使用行级锁（`FOR UPDATE`）读取并计算调整前后库存
 - 减去需要扣减的商品库存
-- 依次创建商品详情
-- 创建并记录商品库存调整的流水
+- 创建订单明细 order_items
+- 创建并记录商品库存调整流水
+- 任一步骤失败时，事务整体回滚，避免出现部分写入
 
 ### 订单取消
 
 订单取消流程
 
 - 查询需要取消的订单
-- 判断订单的支付状态，已取消的订单使用幂等直接完成
+- 判断订单状态，仅允许取消待支付订单；已取消订单按幂等直接返回
 - 查询订单下已订购的商品
-- 遍历和查询商品品类，并回滚商品库存
-- 创建并记录商品库存调整的流水
+- 遍历订单商品项，并回滚商品库存
+- 创建并记录商品库存调整流水
+- 任一步骤失败时，事务整体回滚，避免库存回滚不完整
 
 
-## 9. 订单状态机
+## 10. 订单状态机
 
 订单状态：
 
@@ -194,7 +222,7 @@ router/               路由注册
 - 已取消订单不能支付或完成
 - 未支付订单不能完成
 
-## 10. Redis 商品详情缓存设计
+## 11. Redis 商品详情缓存设计
 
 当前项目对商品详情接口增加了 cache-aside 缓存。
 
@@ -224,9 +252,16 @@ product:detail:{product_id}
 
 - 商品下架：删除商品详情缓存
 
+### 当前边界
+
+- 当前仅对商品详情接口实现 cache-aside 缓存
+- 当前通过“状态变更时主动删缓存”保证基础一致性，不包含延迟双删等增强策略
+- 当前未引入缓存击穿保护（如互斥锁、逻辑过期），后续可按流量特征演进
+- Redis 不可用时直接降级到 MySQL 主流程，优先保证业务可用性
 
 
-## 11. 幂等设计说明
+
+## 12. 幂等设计说明
 
 本项目只对状态设置类接口做轻量级幂等处理：
 
@@ -242,11 +277,11 @@ product:detail:{product_id}
 - 支付订单：重复支付返回状态冲突
 - 完成订单：重复完成返回状态冲突
 
-## 12. 接口清单
+## 13. 接口清单
 
 接口说明详见：[docs/api_list.md](docs/api_list.md)
 
-## 13. 环境变量
+## 14. 环境变量
 
 项目通过 `.env` 读取数据库配置：
 
@@ -324,7 +359,7 @@ volumes:
 
 ```
 
-## 14. 启动方式
+## 15. 启动方式
 
 安装依赖：
 
@@ -358,7 +393,7 @@ http://localhost:8082
 curl http://localhost:8082/ping
 ```
 
-## 15. 测试方式
+## 16. 测试方式
 
 运行 Go 测试：
 
@@ -373,9 +408,10 @@ docs/http/products.http
 docs/http/inventory.http
 docs/http/stock_logs.http
 docs/http/orders.http
+docs/http/redis.http
 ```
 
-Redis 测试：
+Redis 集成测试：
 
 ```bash
 RUN_REDIS_TEST=1 go test -v ./internal/bizcache
@@ -383,28 +419,34 @@ RUN_REDIS_TEST=1 go test -v ./internal/bizcache
 
 测试计划见：[docs/test_plan.md](docs/test_plan.md)
 
-## 16. 项目文档
+## 17. 项目文档
 
 - [docs/api_list.md](docs/api_list.md)：接口清单
 - [docs/business_rules.md](docs/business_rules.md)：业务规则
 - [docs/table_design.md](docs/table_design.md)：数据表设计
 - [docs/test_plan.md](docs/test_plan.md)：测试计划
+- [docs/test_result.md](docs/test_result.md)：测试结果记录
 - [docs/project_review.md](docs/project_review.md)：项目复盘
 - [docs/project_evolution.md](docs/project_evolution.md)：后续演进
+- [docs/interview_guide.md](docs/interview_guide.md)：面试讲解提纲
 
-## 17. 当前可复盘亮点
+## 18. 当前可复盘亮点
 
-- 订单创建使用事务包住订单、库存、订单项和库存流水
-- 库存扣减使用条件更新，避免库存不足时继续扣减
-- 库存变化有 stock_logs，可追踪业务来源
-- 订单状态通过 service 层统一控制，避免接口层散落状态判断
-- 项目文档、接口测试文件和测试清单逐步补齐，便于面试讲解
+- 使用 handler / service / dao / model 分层组织代码，避免业务逻辑散落在接口层
+- 创建订单使用事务保证 orders、order_items、product_inventories、stock_logs 多表一致性
+- 库存扣减使用库存行锁 + 条件更新，避免库存不足时继续扣减
+- order_items 保存商品名称和价格快照，避免商品后续修改影响历史订单
+- stock_logs 记录库存变更前后数量、业务类型和业务 ID，便于排查库存异常
+- 订单状态机限制待支付、已支付、已完成、已取消之间的非法流转
+- 取消待支付订单时回滚库存，并记录 biz_type=4 的库存流水
+- 商品详情使用 Redis cache-aside 缓存，商品上下架时删除缓存
+- Redis 异常时降级走 MySQL，不影响主业务流程
+- 使用 apperror 统一业务错误、HTTP 状态码和业务 code
 
-## 18. 后续演进方向
+## 19. 后续演进方向
 
 - service 层增加更多的测试内容
-- 使用 App 容器化统一管理依赖，代替 global
+- 优化 Docker Compose 与本地启动脚本，统一依赖启动与初始化流程
 - 优化错误码文档和接口返回示例
-- 增加 Docker Compose，降低本地启动成本
 - 订单中使用雪花 ID 代替时间戳生成 orderNO
 - 创建订单时可引入 client_order_no / idempotency_key，避免重复下单
