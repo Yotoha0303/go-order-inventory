@@ -1,3 +1,4 @@
+-- Active: 1778141354927@@127.0.0.1@3306@go_order_inventory_demo
 -- 删除表数据
 DELETE FROM stock_logs;
 

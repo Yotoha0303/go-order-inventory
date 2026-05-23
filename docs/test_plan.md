@@ -2,13 +2,13 @@
 
 ## 1. 测试类型
 
-本项目当前采用三类测试方式：
+本项目当前采用四类测试方式：
 
 1. REST Client 手动接口测试
 2. 核心业务流程自测
-3. 业务规则检查清单
+3. service 层自动化测试
+4. Redis 缓存集成测试
 
-后续可补充 Go 自动化测试，包括 service 层单元测试和 handler 层接口测试。
 
 ## 2. REST Client 接口测试
 
@@ -19,6 +19,7 @@ docs/http/products.http
 docs/http/inventory.http
 docs/http/stock_logs.http
 docs/http/orders.http
+docs/http/redis.http
 ```
 
 执行方式：

@@ -1,5 +1,5 @@
 ﻿@baseUrl = http://127.0.0.1:8082
-@productId = 1
+@productId = 12
 @orderId = 1
 
 ## 一、项目启动前检查
@@ -54,7 +54,7 @@ Content-Type: application/json
   "items": [
     {
       "product_id": {{productId}},
-      "quantity": 2
+      "quantity": 999
     }
   ]
 }

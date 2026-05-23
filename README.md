@@ -87,6 +87,7 @@ config/               配置加载
 docs/                 项目文档、接口测试文件、SQL 脚本
 docs/http/            REST Client 手动接口测试文件
 docs/sql/             初始化和测试 SQL
+docs/evidence/        测试与运行截图证据
 global/               全局资源，如 DB
 internal/apperror/    业务错误定义与错误码映射
 internal/bizcache/    数据缓存
@@ -401,6 +402,12 @@ curl http://localhost:8082/ping
 go test -v ./...
 ```
 
+Redis 集成测试：
+
+```bash
+RUN_REDIS_TEST=1 go test -v ./internal/bizcache
+```
+
 手动接口测试：
 
 ```text
@@ -409,12 +416,7 @@ docs/http/inventory.http
 docs/http/stock_logs.http
 docs/http/orders.http
 docs/http/redis.http
-```
-
-Redis 集成测试：
-
-```bash
-RUN_REDIS_TEST=1 go test -v ./internal/bizcache
+docs/http/demo_flow.http
 ```
 
 测试计划见：[docs/test_plan.md](docs/test_plan.md)

@@ -5,7 +5,7 @@ mysql:
   user: root
   host: 127.0.0.1
   port: "3306"
-  database: go_order_inventory
+  database: go_order_inventory_demo
 
 redis:
   addr: 127.0.0.1:6379
