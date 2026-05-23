@@ -1,6 +1,6 @@
 ﻿# go-order-inventory
 
-轻量级订单库存管理系统，一个面向 Go 后端求职实战的项目。项目围绕商品、库存、库存流水和订单状态流转展开，重点练习 Gin 接口开发、GORM 数据建模、MySQL 事务、库存扣减一致性和分层代码组织。
+一个轻量级订单库存管理系统，重点展示 Go 后端业务分层、事务一致性、库存扣减、订单状态机、Redis 缓存和测试能力。
 
 ## 1. 项目简介
 
@@ -277,7 +277,7 @@ redis:
 
 ```
 
-项目可通过 Docker 进行部署， `docker-compose.yml` 
+项目可通过 Docker 进行部署， `docker-compose.yml` ：
 
 ```
 services:
