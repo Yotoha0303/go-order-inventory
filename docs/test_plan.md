@@ -1,16 +1,23 @@
 ﻿# 项目测试说明
 
-## 1. 测试类型
+## 1. 测试目的
 
-本项目当前采用四类测试方式：
+本测试方法采用手动测试和自动测试两种不同的方法进行测试，首要的目的除了是验证商品、库存、订单模块在正常流程和错误流程下的数据一致性外，着重项目
+
+核心代码的功能可靠性测试，并且有效缩短测试的流程。
+
+其中，用 REST Client 手动测试进行接口测试，用自动化测试来围绕以订单创建和订单状态机状态流转为主的业务功能可靠性测试。
+
+## 2. 测试类型
+
+本项目当前包含三类测试方式：
 
 1. REST Client 手动接口测试
-2. 核心业务流程自测
-3. service 层自动化测试
-4. Redis 缓存集成测试
+2. service 层自动化测试
+3. Redis 缓存集成测试
 
 
-## 2. REST Client 接口测试
+## 3. REST Client 接口测试
 
 测试文件位置：
 
@@ -30,7 +37,7 @@ docs/http/redis.http
 4. 点击每个请求上方的 `Send Request`
 5. 对比响应结果和数据库变化
 
-## 3. 商品模块自测
+### 3.1 商品模块自测
 
 - [x] 创建商品成功
 - [x] 创建商品后 `status = 2`
@@ -42,7 +49,7 @@ docs/http/redis.http
 - [x] 商品上架成功
 - [x] 商品下架成功
 
-## 4. 库存模块自测
+### 3.2 库存模块自测
 
 - [x] 存在商品可以初始化库存
 - [x] 不存在商品不能初始化库存
@@ -56,7 +63,7 @@ docs/http/redis.http
 - [x] 增加库存后 `stock_quantity` 正确变化
 - [x] 增加库存后 `stock_logs` 有 `biz_type = 2` 记录
 
-## 5. 库存流水自测
+### 3.3 库存流水自测
 
 - [x] 不传 `product_id` 可以查询全部流水
 - [x] 传 `product_id` 可以查询指定商品流水
@@ -67,7 +74,7 @@ docs/http/redis.http
 - [x] 取消订单后能查到 `biz_type = 4`
 - [x] `before_quantity / change_quantity / after_quantity` 正确
 
-## 6. 订单状态机测试
+### 3.4 订单状态机测试
 
 创建订单
 
@@ -108,10 +115,56 @@ docs/http/redis.http
 - [x] 已取消订单再次取消直接成功
 - [x] 已取消订单再次取消不会重复回滚库存
 
-## 7. Redis 缓存测试
+### 3.5 Redis 缓存接口自测
 
 - [x] 商品详情缓存 key 是否正确
 - [x] Redis 为空时，缓存函数不会影响主流程
 - [x] SetProductDetail 后能 GetProductDetail
 - [x] DeleteProductDetailCache 后再次 Get 应该 miss
 - [x] 缓存 TTL 是否存在
+
+## 4. service 层自动化测试（包含订单状态机测试）
+
+测试文件位置：
+
+```text
+internal/service/*_test.go
+```
+
+执行方式：
+
+```bash
+go test -v ./...
+```
+
+测试内容：
+
+- [x] 商品创建、上下架和查询相关业务规则
+- [x] 库存初始化、增加库存和库存异常场景
+- [x] 创建订单时库存扣减、库存不足回滚
+- [x] 订单支付、完成、取消状态流转
+- [x] 已取消订单重复取消不会重复回滚库存
+- [x] 关键异常链路返回预期业务错误
+
+## 5. Redis 缓存集成测试
+
+
+测试文件位置：
+
+```text
+internal/bizcache/product_cache_test.go
+```
+
+执行方式：
+
+```bash
+RUN_REDIS_TEST=1 go test -v ./internal/bizcache
+```
+
+测试内容：
+
+- [x] key 正确  
+- [x] Redis nil 不 panic  
+- [x] Set/Get/Delete 正常  
+- [x] TTL 正常  
+- [x] 接口层手动验证上下架删除缓存

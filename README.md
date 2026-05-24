@@ -325,7 +325,7 @@ services:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-your-password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_order_inventory_demo}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_order_inventory}
       TZ: Asia/Shanghai
     command:
       - --character-set-server=utf8mb4
