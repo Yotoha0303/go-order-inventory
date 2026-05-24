@@ -428,9 +428,23 @@ docs/http/demo_flow.http
 - [docs/table_design.md](docs/table_design.md)：数据表设计
 - [docs/test_plan.md](docs/test_plan.md)：测试计划
 - [docs/test_result.md](docs/test_result.md)：测试结果记录
-- [docs/project_review.md](docs/project_review.md)：项目复盘
 - [docs/project_evolution.md](docs/project_evolution.md)：后续演进
-- [docs/interview_guide.md](docs/interview_guide.md)：面试讲解提纲
+- [docs/evidence](docs/evidence)：项目运行、测试与关键业务截图证据
+
+### 17.1 项目证据链（docs/evidence/）
+
+本目录用于保存项目运行、测试和关键业务链路截图，便于项目展示和面试讲解。
+
+- 创建订单成功：`create_order_success_2026-05-23_17-26-48.png`
+- 创建订单库存不足并回滚：`create_order_insufficient_inventory_rollback_2026-05-25_00-02-52.png`
+- 取消订单后库存回滚：`order_cancel_inventory_rollback_2026-05-25_00-10-18.png`
+- Redis 商品详情缓存命中：`redis_get_product_cache_success_2026-05-25_00-16-01.png`
+- 商品上架/下架后缓存删除：`redis_on_or_off_sale_product_cache_delete_success_2026-05-25_00-16-01.png`
+- Redis 集成测试执行成功：`redis_test_execute_success_2026-05-23_17-23-36.png`
+- 自动化测试运行结果（分段截图）：
+  `test_run_success_part_1_2026-05-23_17-19-26.png`
+  `test_run_success_part_2_2026-05-23_17-19-26.png`
+  `test_run_success_part_3_2026-05-23_17-19-26.png`
 
 ## 18. 当前可复盘亮点
 
@@ -443,7 +457,7 @@ docs/http/demo_flow.http
 - 取消待支付订单时回滚库存，并记录 biz_type=4 的库存流水
 - 商品详情使用 Redis cache-aside 缓存，商品上下架时删除缓存
 - Redis 异常时降级走 MySQL，不影响主业务流程
-- 使用 apperror 统一业务错误、HTTP 状态码和业务 code
+- 使用 AppError 统一业务错误、HTTP 状态码和业务 code，减少 handler 层重复错误判断
 
 ## 19. 后续演进方向
 
