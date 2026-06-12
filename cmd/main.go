@@ -11,43 +11,48 @@ import (
 	"log"
 )
 
+var fatalf = log.Fatalf
+
 func main() {
+	if err := run(); err != nil {
+		fatalf("start server failed: %v", err)
+	}
+}
+
+func run() error {
+
 	config.LoadEnv()
 
 	cfg, err := config.LoadConfig("config.yml")
 	if err != nil {
-		log.Fatalf("load config failed:%v", err)
+		return fmt.Errorf("load config failed:%v", err)
 	}
 
 	db, err := database.InitDB(cfg)
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		return fmt.Errorf("failed to connect database: %v", err)
 	}
 
 	if err := db.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}, &model.Order{}, &model.OrderItem{}); err != nil {
-		log.Fatalf("auto migrate failed: %v", err)
+		fatalf("auto migrate failed: %v", err)
 	}
 
 	global.DB = db
 
 	redisClient, err := redis.InitRedis(cfg)
 	if err != nil {
-		log.Printf("failed to connect redis: %v", err)
+		fatalf("failed to connect redis: %v", err)
 	} else {
 		global.Redis = redisClient
-		log.Println("redis connected")
+		fatalf("redis connected")
 	}
-
-	run(fmt.Sprintf(":%d", cfg.Server.Port))
-}
-
-func run(addr string) {
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	fmt.Println("server starting at", addr)
 
 	r := router.SetupRouters()
 
-	err := r.Run(addr)
+	err = r.Run(addr)
 	if err != nil {
-		log.Fatalf("run server is failed: %v", err)
+		fatalf("run server is failed: %v", err)
 	}
 }
