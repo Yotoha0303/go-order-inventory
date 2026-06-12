@@ -19,7 +19,7 @@ func main() {
 		log.Fatalf("load config failed:%v", err)
 	}
 
-	db, err := database.InitDB(cfg.MySQL)
+	db, err := database.InitDB(cfg)
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
@@ -30,7 +30,7 @@ func main() {
 
 	global.DB = db
 
-	redisClient, err := redis.InitRedis(cfg.Redis)
+	redisClient, err := redis.InitRedis(cfg)
 	if err != nil {
 		log.Printf("failed to connect redis: %v", err)
 	} else {
@@ -38,12 +38,15 @@ func main() {
 		log.Println("redis connected")
 	}
 
-	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	run(fmt.Sprintf(":%d", cfg.Server.Port))
+}
+
+func run(addr string) {
 	fmt.Println("server starting at", addr)
 
 	r := router.SetupRouters()
 
-	err = r.Run(addr)
+	err := r.Run(addr)
 	if err != nil {
 		log.Fatalf("run server is failed: %v", err)
 	}

@@ -9,15 +9,28 @@ import (
 	"gorm.io/gorm"
 )
 
-func InitDB(cfg config.MySQLConfig) (*gorm.DB, error) {
-
-	dbPassword := os.Getenv("MYSQL_PASSWORD")
-
-	if cfg.User == "" || dbPassword == "" || cfg.Host == "" || cfg.Port == "" || cfg.Database == "" {
-		return nil, fmt.Errorf("database config missing")
+func buildDSN(cfg *config.Config, dbPassword string) (string, error) {
+	if cfg.MySQL.User == "" || dbPassword == "" || cfg.MySQL.Host == "" || cfg.MySQL.Port == "" || cfg.MySQL.Database == "" {
+		return "", fmt.Errorf("database config missing")
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", cfg.User, dbPassword, cfg.Host, cfg.Port, cfg.Database)
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		cfg.MySQL.User,
+		dbPassword,
+		cfg.MySQL.Host,
+		cfg.MySQL.Port,
+		cfg.MySQL.Database,
+	), nil
+}
 
-	return gorm.Open(mysql.Open(dsn), &gorm.Config{})
+var openMySQL = func(dsn string) (*gorm.DB, error) {
+	return gorm.Open(mysql.Open(dsn), nil)
+}
+
+func InitDB(cfg *config.Config) (*gorm.DB, error) {
+	dsn, err := buildDSN(cfg, os.Getenv("MYSQL_PASSWORD"))
+	if err != nil {
+		return nil, err
+	}
+	return openMySQL(dsn)
 }

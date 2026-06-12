@@ -27,7 +27,7 @@ func setupTestRedis(t *testing.T) {
 			return
 		}
 
-		client, err := redis.InitRedis(cfg.Redis)
+		client, err := redis.InitRedis(cfg)
 		if err != nil {
 			testRedisInitErr = err
 			return
