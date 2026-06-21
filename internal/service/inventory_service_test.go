@@ -9,10 +9,16 @@ import (
 	"testing"
 )
 
-func TestInitInventory_ProductNotFound(t *testing.T) {
+func newInventoryService(t *testing.T) *service.InventoryService {
+	t.Helper()
 	setupTestDB(t)
+	return service.NewInventoryService(global.DB)
+}
+
+func TestInitInventory_ProductNotFound(t *testing.T) {
+	inventorySvc := newInventoryService(t)
 	qty := int64(10)
-	err := service.InitInventory(&request.InitInventoryRequest{
+	err := inventorySvc.InitInventory(&request.InitInventoryRequest{
 		ProductID:     99999,
 		StockQuantity: &qty,
 	})
@@ -22,11 +28,11 @@ func TestInitInventory_ProductNotFound(t *testing.T) {
 }
 
 func TestInitInventory_Success(t *testing.T) {
-	setupTestDB(t)
+	inventorySvc := newInventoryService(t)
 	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
 	qty := int64(20)
 
-	err := service.InitInventory(&request.InitInventoryRequest{
+	err := inventorySvc.InitInventory(&request.InitInventoryRequest{
 		ProductID:     p.ID,
 		StockQuantity: &qty,
 	})
@@ -44,8 +50,8 @@ func TestInitInventory_Success(t *testing.T) {
 }
 
 func TestAddInventory_InvalidQuantity(t *testing.T) {
-	setupTestDB(t)
-	err := service.AddInventory(request.AddInventoryRequest{
+	inventorySvc := newInventoryService(t)
+	err := inventorySvc.AddInventory(request.AddInventoryRequest{
 		ProductID: 1,
 		Quantity:  0,
 	})
@@ -55,11 +61,11 @@ func TestAddInventory_InvalidQuantity(t *testing.T) {
 }
 
 func TestAddInventory_Success(t *testing.T) {
-	setupTestDB(t)
+	inventorySvc := newInventoryService(t)
 	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
 	seedInventory(t, p.ID, 10)
 
-	err := service.AddInventory(request.AddInventoryRequest{
+	err := inventorySvc.AddInventory(request.AddInventoryRequest{
 		ProductID: p.ID,
 		Quantity:  5,
 	})
@@ -77,11 +83,11 @@ func TestAddInventory_Success(t *testing.T) {
 }
 
 func TestInitInventory_CreateStockLog(t *testing.T) {
-	setupTestDB(t)
+	inventorySvc := newInventoryService(t)
 	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
 	qty := int64(20)
 
-	err := service.InitInventory(&request.InitInventoryRequest{
+	err := inventorySvc.InitInventory(&request.InitInventoryRequest{
 		ProductID:     p.ID,
 		StockQuantity: &qty,
 	})

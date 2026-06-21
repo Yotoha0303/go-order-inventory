@@ -90,6 +90,7 @@ func seedPendingOrder(t *testing.T) *model.Order {
 	t.Helper()
 
 	db := global.DB
+	orderSvc := service.NewOrderService(db)
 	name := "order pending test"
 	priceFen := int64(100)
 	qty := int64(50)
@@ -115,7 +116,7 @@ func seedPendingOrder(t *testing.T) *model.Order {
 		t.Fatalf("create inventory failed: %v", err)
 	}
 
-	order, err := service.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID,
 				Quantity: orderQty},
@@ -131,6 +132,7 @@ func seedPendingOrder(t *testing.T) *model.Order {
 func seedPaidOrder(t *testing.T) *model.Order {
 	t.Helper()
 
+	orderSvc := service.NewOrderService(global.DB)
 	name := "order paid test"
 	priceFen := int64(100)
 	qty := int64(50)
@@ -140,7 +142,7 @@ func seedPaidOrder(t *testing.T) *model.Order {
 
 	seedInventory(t, product.ID, qty)
 
-	order, err := service.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID, Quantity: orderQty},
 		},
@@ -149,7 +151,7 @@ func seedPaidOrder(t *testing.T) *model.Order {
 		t.Fatalf("create order failed: %v", err)
 	}
 
-	if err := service.PayOrder(order.ID); err != nil {
+	if err := orderSvc.PayOrder(order.ID); err != nil {
 		t.Fatalf("pay order failed: %v", err)
 	}
 
@@ -159,9 +161,10 @@ func seedPaidOrder(t *testing.T) *model.Order {
 func seedFinishedOrder(t *testing.T) *model.Order {
 	t.Helper()
 
+	orderSvc := service.NewOrderService(global.DB)
 	order := seedPaidOrder(t)
 
-	if err := service.FinishOrder(order.ID); err != nil {
+	if err := orderSvc.FinishOrder(order.ID); err != nil {
 		t.Fatalf("finish order failed: %v", err)
 	}
 
@@ -171,9 +174,10 @@ func seedFinishedOrder(t *testing.T) *model.Order {
 func seedCancelledOrder(t *testing.T) *model.Order {
 	t.Helper()
 
+	orderSvc := service.NewOrderService(global.DB)
 	order := seedPendingOrder(t)
 
-	if err := service.CancelOrder(order.ID); err != nil {
+	if err := orderSvc.CancelOrder(order.ID); err != nil {
 		t.Fatalf("finish order failed: %v", err)
 	}
 
@@ -191,6 +195,7 @@ func seedPendingOrderContext(t *testing.T) seededOrderContext {
 	t.Helper()
 
 	db := global.DB
+	orderSvc := service.NewOrderService(db)
 	name := "order pending test"
 	priceFen := int64(100)
 	qty := int64(50)
@@ -216,7 +221,7 @@ func seedPendingOrderContext(t *testing.T) seededOrderContext {
 		t.Fatalf("create inventory failed: %v", err)
 	}
 
-	order, err := service.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID,
 				Quantity: orderQty},

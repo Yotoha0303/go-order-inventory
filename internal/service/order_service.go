@@ -3,90 +3,17 @@ package service
 import (
 	"errors"
 	"fmt"
-	"go-order-inventory/global"
-	"go-order-inventory/internal/apperror"
-	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
-	"go-order-inventory/internal/response"
-	"net/http"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-var (
-	ErrProductOffSale = apperror.New(
-		http.StatusConflict,
-		response.CodeProductAlreadyOffSale,
-		"商品已下架",
-	)
-
-	ErrInsufficientStock = apperror.New(
-		http.StatusConflict,
-		response.CodeInsufficientStock,
-		"库存不足",
-	)
-
-	ErrCreateOrderFailed = apperror.New(
-		http.StatusInternalServerError,
-		response.CodeCreateOrderFailed,
-		"创建订单失败",
-	)
-
-	ErrOrderNotFound = apperror.New(
-		http.StatusNotFound,
-		response.CodeOrderNotFound,
-		"订单不存在",
-	)
-
-	ErrOrderPayFailed = apperror.New(
-		http.StatusConflict,
-		response.CodeOrderPayFailed,
-		"订单支付失败",
-	)
-
-	ErrOrderFinishFailed = apperror.New(
-		http.StatusConflict,
-		response.CodeOrderFinishFailed,
-		"订单完成失败",
-	)
-
-	ErrOrderCancelFailed = apperror.New(
-		http.StatusConflict,
-		response.CodeOrderCancelFailed,
-		"订单取消失败",
-	)
-
-	ErrOrderNotPaid = apperror.New(
-		http.StatusConflict,
-		response.CodeOrderNotPaid,
-		"订单未支付",
-	)
-
-	ErrOrderAlreadyCanceled = apperror.New(
-		http.StatusConflict,
-		response.CodeOrderAlreadyCanceled,
-		"订单已取消",
-	)
-
-	ErrOrderAlreadyFinished = apperror.New(
-		http.StatusConflict,
-		response.CodeOrderAlreadyFinished,
-		"订单已完成",
-	)
-
-	ErrOrderAlreadyPaid = apperror.New(
-		http.StatusConflict,
-		response.CodeOrderAlreadyPaid,
-		"订单已支付",
-	)
-)
-
-func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
+func (p *OrderService) CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 	var createOrder *model.Order
 
-	err := global.DB.Transaction(func(tx *gorm.DB) error {
+	err := p.db.Transaction(func(tx *gorm.DB) error {
 		var totalAmountFen int64 = 0
 
 		orderNo := generateOrderNo()
@@ -97,12 +24,12 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 			Status:         model.OrderStatusPending,
 		}
 
-		if err := dao.CreateOrder(tx, order); err != nil {
+		if err := p.daoStore.CreateOrder(tx, order); err != nil {
 			return err
 		}
 
 		for _, itemReq := range req.Items {
-			product, err := dao.GetProductByID(tx, itemReq.ProductID)
+			product, err := p.daoStore.GetProductByID(tx, itemReq.ProductID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					return ErrProductNotFound
@@ -114,7 +41,7 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 				return ErrProductOffSale
 			}
 
-			inv, err := dao.GetInventoryByProductIDForUpdate(tx, itemReq.ProductID)
+			inv, err := p.daoStore.GetInventoryByProductIDForUpdate(tx, itemReq.ProductID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					return ErrInventoryNotFound
@@ -129,7 +56,7 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 				return ErrInsufficientStock
 			}
 
-			rows, err := dao.DeductInventory(tx, itemReq.ProductID, itemReq.Quantity)
+			rows, err := p.daoStore.DeductInventory(tx, itemReq.ProductID, itemReq.Quantity)
 			if err != nil {
 				return err
 			}
@@ -149,7 +76,7 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 				SubtotalFen:     subtotalFen,
 			}
 
-			if err := dao.CreateOrderItems(tx, orderItem); err != nil {
+			if err := p.daoStore.CreateOrderItems(tx, orderItem); err != nil {
 				return err
 			}
 
@@ -162,12 +89,12 @@ func CreateOrder(req request.CreateOrderRequest) (*model.Order, error) {
 				BizID:          &order.ID,
 				Remark:         "创建订单扣减库存：" + order.OrderNo,
 			}
-			if err := dao.CreateStockLog(tx, stockLog); err != nil {
+			if err := p.daoStore.CreateStockLog(tx, stockLog); err != nil {
 				return ErrCreateStockLogFailed
 			}
 		}
 
-		if err := dao.PatchOrderTotalPriceFen(tx, order.ID, totalAmountFen); err != nil {
+		if err := p.daoStore.PatchOrderTotalPriceFen(tx, order.ID, totalAmountFen); err != nil {
 			return err
 		}
 
@@ -188,8 +115,8 @@ func generateOrderNo() string {
 	return fmt.Sprintf("ORD%d", time.Now().UnixNano())
 }
 
-func GetOrderByID(id int64) (*model.Order, []*model.OrderItem, error) {
-	order, err := dao.GetOrderByID(global.DB, id)
+func (p *OrderService) GetOrderByID(id int64) (*model.Order, []*model.OrderItem, error) {
+	order, err := p.daoStore.GetOrderByID(p.db, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, ErrOrderNotFound
@@ -197,7 +124,7 @@ func GetOrderByID(id int64) (*model.Order, []*model.OrderItem, error) {
 		return nil, nil, err
 	}
 
-	items, err := dao.ListOrderItemsByOrderID(global.DB, id)
+	items, err := p.daoStore.ListOrderItemsByOrderID(p.db, id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -205,14 +132,14 @@ func GetOrderByID(id int64) (*model.Order, []*model.OrderItem, error) {
 	return order, items, nil
 }
 
-func ListOrders() ([]*model.Order, error) {
-	return dao.ListOrders(global.DB)
+func (p *OrderService) ListOrders() ([]*model.Order, error) {
+	return p.daoStore.ListOrders(p.db)
 }
 
-func CancelOrder(orderID int64) error {
-	return global.DB.Transaction(func(tx *gorm.DB) error {
+func (p *OrderService) CancelOrder(orderID int64) error {
+	return p.db.Transaction(func(tx *gorm.DB) error {
 
-		order, err := dao.GetOrderByID(tx, orderID)
+		order, err := p.daoStore.GetOrderByID(tx, orderID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrOrderNotFound
@@ -232,7 +159,7 @@ func CancelOrder(orderID int64) error {
 			return ErrOrderCancelFailed
 		}
 
-		rows, err := dao.PatchOrderStatus(tx, order.ID, model.OrderStatusPending, model.OrderStatusCancelled, "cancelled_at")
+		rows, err := p.daoStore.PatchOrderStatus(tx, order.ID, model.OrderStatusPending, model.OrderStatusCancelled, "cancelled_at")
 		if err != nil {
 			return err
 		}
@@ -241,13 +168,13 @@ func CancelOrder(orderID int64) error {
 			return ErrOrderCancelFailed
 		}
 
-		items, err := dao.ListOrderItemsByOrderID(tx, order.ID)
+		items, err := p.daoStore.ListOrderItemsByOrderID(tx, order.ID)
 		if err != nil {
 			return err
 		}
 
 		for _, item := range items {
-			inventory, err := dao.GetInventoryByProductIDForUpdate(tx, item.ProductID)
+			inventory, err := p.daoStore.GetInventoryByProductIDForUpdate(tx, item.ProductID)
 			if err != nil {
 				return err
 			}
@@ -255,7 +182,7 @@ func CancelOrder(orderID int64) error {
 			before := inventory.StockQuantity
 			after := before + item.Quantity
 
-			if err := dao.UpdateInventoryStockQuantity(tx, item.ProductID, after); err != nil {
+			if err := p.daoStore.UpdateInventoryStockQuantity(tx, item.ProductID, after); err != nil {
 				return err
 			}
 
@@ -269,7 +196,7 @@ func CancelOrder(orderID int64) error {
 				Remark:         "取消订单回滚库存：" + order.OrderNo,
 			}
 
-			if err := dao.CreateStockLog(tx, stockLog); err != nil {
+			if err := p.daoStore.CreateStockLog(tx, stockLog); err != nil {
 				return err
 			}
 		}
@@ -278,8 +205,8 @@ func CancelOrder(orderID int64) error {
 	})
 }
 
-func PayOrder(orderID int64) error {
-	order, err := dao.GetOrderByID(global.DB, orderID)
+func (p *OrderService) PayOrder(orderID int64) error {
+	order, err := p.daoStore.GetOrderByID(p.db, orderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrOrderNotFound
@@ -299,7 +226,7 @@ func PayOrder(orderID int64) error {
 		return ErrOrderPayFailed
 	}
 
-	row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPending, model.OrderStatusPaid, "paid_at")
+	row, err := p.daoStore.PatchOrderStatus(p.db, order.ID, model.OrderStatusPending, model.OrderStatusPaid, "paid_at")
 	if err != nil {
 		return err
 	}
@@ -310,8 +237,8 @@ func PayOrder(orderID int64) error {
 	return nil
 }
 
-func FinishOrder(orderID int64) error {
-	order, err := dao.GetOrderByID(global.DB, orderID)
+func (p *OrderService) FinishOrder(orderID int64) error {
+	order, err := p.daoStore.GetOrderByID(p.db, orderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrOrderNotFound
@@ -331,7 +258,7 @@ func FinishOrder(orderID int64) error {
 		return ErrOrderFinishFailed
 	}
 
-	row, err := dao.PatchOrderStatus(global.DB, order.ID, model.OrderStatusPaid, model.OrderStatusFinished, "completed_at")
+	row, err := p.daoStore.PatchOrderStatus(p.db, order.ID, model.OrderStatusPaid, model.OrderStatusFinished, "completed_at")
 	if err != nil {
 		return err
 	}

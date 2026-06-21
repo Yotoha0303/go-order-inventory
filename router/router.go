@@ -2,15 +2,37 @@ package router
 
 import (
 	"go-order-inventory/internal/handler"
+	"go-order-inventory/internal/middleware"
+	"go-order-inventory/internal/service"
+	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func SetupRouters() *gin.Engine {
-	r := gin.Default()
+func SetupRouters(db *gorm.DB, logger *slog.Logger, timeout time.Duration) *gin.Engine {
+	r := gin.New()
+
+	r.Use(
+		middleware.RequestID(),
+		middleware.AccessLog(logger),
+		middleware.TimeoutMiddleware(timeout),
+		middleware.Recovery(logger),
+	)
+
+	productService := service.NewProductService(db)
+	inventoryService := service.NewInventoryService(db)
+	stockLogService := service.NewStockLogService(db)
+	orderService := service.NewOrderService(db)
+
+	productHandler := handler.NewProductHandler(productService)
+	inventoryHandler := handler.NewInventoryHandler(inventoryService)
+	stockLogHandler := handler.NewStockLogHandler(stockLogService)
+	orderHandler := handler.NewOrderHandler(orderService)
 
 	registerHealthRouters(r)
-	registerAPIRouter(r)
+	registerAPIRouter(r, productHandler, inventoryHandler, stockLogHandler, orderHandler)
 	return r
 }
 
@@ -28,45 +50,51 @@ func registerHealthRouters(r *gin.Engine) {
 
 }
 
-func registerAPIRouter(rg *gin.Engine) {
+func registerAPIRouter(
+	rg *gin.Engine,
+	productHandler *handler.ProductHandler,
+	inventoryHandler *handler.InventoryHandler,
+	stockLogHandler *handler.StockLogHandler,
+	orderHandler *handler.OrderHandler,
+) {
 	apiV1 := rg.Group("/api/v1")
 
-	registerProductAPIRouter(apiV1)
-	registerInventoryAPIRouter(apiV1)
-	registerStockLogAPIRouter(apiV1)
-	registerOrderAPIRouter(apiV1)
+	registerProductAPIRouter(apiV1, productHandler)
+	registerInventoryAPIRouter(apiV1, inventoryHandler)
+	registerStockLogAPIRouter(apiV1, stockLogHandler)
+	registerOrderAPIRouter(apiV1, orderHandler)
 }
 
-func registerProductAPIRouter(rg *gin.RouterGroup) {
+func registerProductAPIRouter(rg *gin.RouterGroup, productHandler *handler.ProductHandler) {
 
-	rg.POST("/products", handler.CreateProduct)
-	rg.GET("/products", handler.ListProducts)
-	rg.GET("/products/:id", handler.GetProductByID)
-	rg.PATCH("/products/:id/on-sale", handler.OnSaleProduct)
-	rg.PATCH("/products/:id/off-sale", handler.OffSaleProduct)
-
-}
-
-func registerInventoryAPIRouter(rg *gin.RouterGroup) {
-
-	rg.POST("/inventory/init", handler.InitInventory)
-	rg.POST("/inventory/add", handler.AddInventory)
-	rg.GET("/inventory/products/:product_id", handler.GetInventoryByProductID)
-}
-
-func registerStockLogAPIRouter(rg *gin.RouterGroup) {
-
-	rg.GET("/stock-logs", handler.ListStockLogs)
+	rg.POST("/products", productHandler.CreateProduct)
+	rg.GET("/products", productHandler.ListProducts)
+	rg.GET("/products/:id", productHandler.GetProductByID)
+	rg.PATCH("/products/:id/on-sale", productHandler.OnSaleProduct)
+	rg.PATCH("/products/:id/off-sale", productHandler.OffSaleProduct)
 
 }
 
-func registerOrderAPIRouter(rg *gin.RouterGroup) {
+func registerInventoryAPIRouter(rg *gin.RouterGroup, inventoryHandler *handler.InventoryHandler) {
 
-	rg.POST("/orders", handler.CreateOrder)
-	rg.GET("/orders/:id", handler.GetOrderByID)
-	rg.GET("/orders", handler.ListOrders)
-	rg.PATCH("/orders/:id/cancel", handler.CancelOrders)
-	rg.PATCH("/orders/:id/pay", handler.PayOrder)
-	rg.PATCH("/orders/:id/finish", handler.FinishOrder)
+	rg.POST("/inventory/init", inventoryHandler.InitInventory)
+	rg.POST("/inventory/add", inventoryHandler.AddInventory)
+	rg.GET("/inventory/products/:product_id", inventoryHandler.GetInventoryByProductID)
+}
+
+func registerStockLogAPIRouter(rg *gin.RouterGroup, stockLogHandler *handler.StockLogHandler) {
+
+	rg.GET("/stock-logs", stockLogHandler.ListStockLogs)
+
+}
+
+func registerOrderAPIRouter(rg *gin.RouterGroup, orderHandler *handler.OrderHandler) {
+
+	rg.POST("/orders", orderHandler.CreateOrder)
+	rg.GET("/orders/:id", orderHandler.GetOrderByID)
+	rg.GET("/orders", orderHandler.ListOrders)
+	rg.PATCH("/orders/:id/cancel", orderHandler.CancelOrders)
+	rg.PATCH("/orders/:id/pay", orderHandler.PayOrder)
+	rg.PATCH("/orders/:id/finish", orderHandler.FinishOrder)
 
 }

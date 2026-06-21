@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
 	"net/http"
@@ -9,7 +10,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ListStockLogs(c *gin.Context) {
+type StockLogService interface {
+	ListStockLogsByProductID(productID *int64) ([]*model.StockLog, error)
+}
+
+type StockLogHandler struct {
+	stockLogService StockLogService
+}
+
+func NewStockLogHandler(stockLogService StockLogService) *StockLogHandler {
+	return &StockLogHandler{
+		stockLogService: stockLogService,
+	}
+}
+
+var _ StockLogService = (*service.StockLogService)(nil)
+
+func (p *StockLogHandler) ListStockLogs(c *gin.Context) {
 	var productID *int64
 
 	productIDStr := c.Query("product_id")
@@ -22,10 +39,11 @@ func ListStockLogs(c *gin.Context) {
 		productID = &id
 	}
 
-	stockLogs, err := service.ListStockLogsByProductID(productID)
+	stockLogs, err := p.stockLogService.ListStockLogsByProductID(productID)
 	if err != nil {
 		handleError(c, err, response.CodeQueryStockLogFailed, "库存流水日志失败")
 		return
 	}
+
 	response.Success(c, stockLogs)
 }

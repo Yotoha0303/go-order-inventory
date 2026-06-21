@@ -11,15 +11,21 @@ import (
 	"testing"
 )
 
-func TestCreateProduct_Success(t *testing.T) {
+func newProductService(t *testing.T) *service.ProductService {
+	t.Helper()
 	setupTestDB(t)
+	return service.NewProductService(global.DB)
+}
+
+func TestCreateProduct_Success(t *testing.T) {
+	productStr := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "test product",
 		Description: "desc",
 		PriceFen:    199,
 	}
-	product, err := service.CreateProduct(req)
+	product, err := productStr.CreateProduct(req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -53,7 +59,7 @@ func TestCreateProduct_Success(t *testing.T) {
 }
 
 func TestCreateProduct_InvalidPrice(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "test product",
@@ -61,7 +67,7 @@ func TestCreateProduct_InvalidPrice(t *testing.T) {
 		PriceFen:    0,
 	}
 
-	product, err := service.CreateProduct(req)
+	product, err := productStr.CreateProduct(req)
 	if !errors.Is(err, service.ErrInvalidProductPrice) {
 		t.Fatalf("expected ErrInvalidProductPrice, got err=%v", err)
 	}
@@ -71,7 +77,7 @@ func TestCreateProduct_InvalidPrice(t *testing.T) {
 }
 
 func TestCreateProduct_SuccessTrimmed(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "  apple  ",
@@ -79,7 +85,7 @@ func TestCreateProduct_SuccessTrimmed(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	p, err := service.CreateProduct(req)
+	p, err := productStr.CreateProduct(req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -92,7 +98,7 @@ func TestCreateProduct_SuccessTrimmed(t *testing.T) {
 }
 
 func TestCreateProduct_EmptyName(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "",
@@ -100,7 +106,7 @@ func TestCreateProduct_EmptyName(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := service.CreateProduct(req)
+	product, err := productStr.CreateProduct(req)
 	if !errors.Is(err, service.ErrInvalidProductName) {
 		t.Fatalf("expected ErrInvalidProductName, got err=%v", err)
 	}
@@ -119,7 +125,7 @@ func TestCreateProduct_EmptyName(t *testing.T) {
 }
 
 func TestCreateProduct_DescriptionTooLong(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "description-too-long-product",
@@ -127,7 +133,7 @@ func TestCreateProduct_DescriptionTooLong(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := service.CreateProduct(req)
+	product, err := productStr.CreateProduct(req)
 	if !errors.Is(err, service.ErrInvalidProductDescription) {
 		t.Fatalf("expect desciption less 500 character:,got %v", err)
 	}
@@ -146,7 +152,7 @@ func TestCreateProduct_DescriptionTooLong(t *testing.T) {
 }
 
 func TestCreateProduct_DescriptionExactly500(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "description exactly 500",
@@ -154,7 +160,7 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := service.CreateProduct(req)
+	product, err := productStr.CreateProduct(req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -198,12 +204,12 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 }
 
 func TestListProducts_OnlyOffSale(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	seedProduct(t, "off-sale", 100, model.ProductStatusOffSale)
 	seedProduct(t, "on-sale", 100, model.ProductStatusOnSale)
 
-	products, err := service.ListProducts()
+	products, err := productStr.ListProducts()
 	if err != nil {
 		t.Fatalf("list products failed: %v", err)
 	}
@@ -217,19 +223,19 @@ func TestListProducts_OnlyOffSale(t *testing.T) {
 }
 
 func TestGetProductByID_NotFound(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
-	_, err := service.GetProductByID(context.Background(), 99999)
+	_, err := productStr.GetProductByID(context.Background(), 99999)
 	if !errors.Is(err, service.ErrProductNotFound) {
 		t.Fatalf("expected ErrProductNotFound, got %v", err)
 	}
 }
 
 func TestOnSaleProduct_Success(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	p := seedProduct(t, "p1", 100, model.ProductStatusOffSale)
-	if err := service.OnSaleProduct(context.Background(), p.ID); err != nil {
+	if err := productStr.OnSaleProduct(context.Background(), p.ID); err != nil {
 		t.Fatalf("on sale failed: %v", err)
 	}
 
@@ -243,10 +249,10 @@ func TestOnSaleProduct_Success(t *testing.T) {
 }
 
 func TestOffSaleProduct_Success(t *testing.T) {
-	setupTestDB(t)
+	productStr := newProductService(t)
 
 	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
-	if err := service.OffSaleProduct(context.Background(), p.ID); err != nil {
+	if err := productStr.OffSaleProduct(context.Background(), p.ID); err != nil {
 		t.Fatalf("off sale failed: %v", err)
 	}
 

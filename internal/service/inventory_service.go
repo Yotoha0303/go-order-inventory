@@ -2,44 +2,10 @@ package service
 
 import (
 	"errors"
-	"go-order-inventory/global"
-	"go-order-inventory/internal/apperror"
-	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
-	"go-order-inventory/internal/response"
-	"net/http"
 
 	"gorm.io/gorm"
-)
-
-var (
-	ErrInitInventoryFailed = apperror.New(
-		http.StatusInternalServerError,
-		response.CodeInitInventoryFailed,
-		"初始化库存失败",
-	)
-	ErrInitInventoryExists = apperror.New(
-		http.StatusConflict,
-		response.CodeInitInventoryExists,
-		"库存已初始化",
-	)
-	ErrInventoryNotFound = apperror.New(
-		http.StatusNotFound,
-		response.CodeInventoryNotFound,
-		"库存未找到",
-	)
-	ErrInvalidAddQuantity = apperror.New(
-		http.StatusBadRequest,
-		response.CodeInventoryInvalidQuantity,
-		"增加的库存数量必须大于0",
-	)
-
-	ErrInvalidStockQuantity = apperror.New(
-		http.StatusBadRequest,
-		response.CodeParameterError,
-		"库存数量不能为负",
-	)
 )
 
 const (
@@ -47,7 +13,7 @@ const (
 	initInventoryRemarkPrefix = "初始化库存："
 )
 
-func InitInventory(req *request.InitInventoryRequest) error {
+func (p *InventoryService) InitInventory(req *request.InitInventoryRequest) error {
 	if req.StockQuantity == nil {
 		return ErrInvalidStockQuantity
 	}
@@ -56,7 +22,7 @@ func InitInventory(req *request.InitInventoryRequest) error {
 		return ErrInvalidStockQuantity
 	}
 
-	product, err := dao.GetProductByID(global.DB, req.ProductID)
+	product, err := p.daoStore.GetProductByID(p.db, req.ProductID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrProductNotFound
@@ -64,7 +30,7 @@ func InitInventory(req *request.InitInventoryRequest) error {
 		return err
 	}
 
-	data, err := dao.GetInventoryByProductID(global.DB, req.ProductID)
+	data, err := p.daoStore.GetInventoryByProductID(p.db, req.ProductID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -72,13 +38,13 @@ func InitInventory(req *request.InitInventoryRequest) error {
 		return ErrInitInventoryExists
 	}
 
-	return global.DB.Transaction(func(tx *gorm.DB) error {
+	return p.db.Transaction(func(tx *gorm.DB) error {
 		inventory := &model.Inventory{
 			ProductID:     product.ID,
 			StockQuantity: *req.StockQuantity,
 		}
 
-		if err := dao.InitInventory(tx, inventory); err != nil {
+		if err := p.daoStore.InitInventory(tx, inventory); err != nil {
 			return ErrInitInventoryFailed
 		}
 
@@ -91,15 +57,15 @@ func InitInventory(req *request.InitInventoryRequest) error {
 			Remark:         initInventoryRemarkPrefix + product.Name,
 		}
 
-		if err := dao.CreateStockLog(tx, log); err != nil {
+		if err := p.daoStore.CreateStockLog(tx, log); err != nil {
 			return ErrCreateStockLogFailed
 		}
 		return nil
 	})
 }
 
-func GetInventoryByProductID(productID int64) (*model.Inventory, error) {
-	inventory, err := dao.GetInventoryByProductID(global.DB, productID)
+func (p *InventoryService) GetInventoryByProductID(productID int64) (*model.Inventory, error) {
+	inventory, err := p.daoStore.GetInventoryByProductID(p.db, productID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrInventoryNotFound
@@ -109,14 +75,14 @@ func GetInventoryByProductID(productID int64) (*model.Inventory, error) {
 	return inventory, nil
 }
 
-func AddInventory(req request.AddInventoryRequest) error {
+func (p *InventoryService) AddInventory(req request.AddInventoryRequest) error {
 	if req.Quantity <= 0 {
 		return ErrInvalidAddQuantity
 	}
 
-	return global.DB.Transaction(func(tx *gorm.DB) error {
+	return p.db.Transaction(func(tx *gorm.DB) error {
 
-		inventory, err := dao.GetInventoryByProductIDForUpdate(tx, req.ProductID)
+		inventory, err := p.daoStore.GetInventoryByProductIDForUpdate(tx, req.ProductID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrInventoryNotFound
@@ -124,7 +90,7 @@ func AddInventory(req request.AddInventoryRequest) error {
 			return err
 		}
 
-		product, err := dao.GetProductByID(tx, req.ProductID)
+		product, err := p.daoStore.GetProductByID(tx, req.ProductID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrProductNotFound
@@ -135,7 +101,7 @@ func AddInventory(req request.AddInventoryRequest) error {
 		beforeQuantity := inventory.StockQuantity
 		afterQuantity := beforeQuantity + req.Quantity
 
-		if err := dao.UpdateInventoryStockQuantity(tx, req.ProductID, afterQuantity); err != nil {
+		if err := p.daoStore.UpdateInventoryStockQuantity(tx, req.ProductID, afterQuantity); err != nil {
 			return err
 		}
 
@@ -148,7 +114,7 @@ func AddInventory(req request.AddInventoryRequest) error {
 			Remark:         addInventoryRemarkPrefix + product.Name,
 		}
 
-		err = dao.CreateStockLog(tx, log)
+		err = p.daoStore.CreateStockLog(tx, log)
 		if err != nil {
 			return ErrCreateStockLogFailed
 		}

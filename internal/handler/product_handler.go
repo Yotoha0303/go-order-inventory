@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
@@ -10,14 +12,34 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateProduct(c *gin.Context) {
+type ProductService interface {
+	CreateProduct(req request.CreateProductRequest) (*model.Product, error)
+	ListProducts() ([]*model.Product, error)
+	GetProductByID(ctx context.Context, id int64) (*model.Product, error)
+	OnSaleProduct(ctx context.Context, id int64) error
+	OffSaleProduct(ctx context.Context, id int64) error
+}
+
+type ProductHandler struct {
+	productService ProductService
+}
+
+func NewProductHandler(productService ProductService) *ProductHandler {
+	return &ProductHandler{
+		productService: productService,
+	}
+}
+
+var _ ProductService = (*service.ProductService)(nil)
+
+func (p *ProductHandler) CreateProduct(c *gin.Context) {
 	var req request.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, http.StatusBadRequest, response.CodeParameterError, "参数错误")
 		return
 	}
 
-	product, err := service.CreateProduct(req)
+	product, err := p.productService.CreateProduct(req)
 
 	if err != nil {
 		handleError(c, err, response.CodeCreateProductFailed, "创建商品失败")
@@ -27,9 +49,9 @@ func CreateProduct(c *gin.Context) {
 	response.Success(c, product)
 }
 
-func ListProducts(c *gin.Context) {
+func (p *ProductHandler) ListProducts(c *gin.Context) {
 
-	products, err := service.ListProducts()
+	products, err := p.productService.ListProducts()
 
 	if err != nil {
 		handleError(c, err, response.CodeQueryProductListFailed, "查询商品列表失败")
@@ -48,12 +70,12 @@ func parsePositiveID(c *gin.Context, paramName string) (int64, bool) {
 	return id, true
 }
 
-func GetProductByID(c *gin.Context) {
+func (p *ProductHandler) GetProductByID(c *gin.Context) {
 	id, ok := parsePositiveID(c, "id")
 	if !ok {
 		return
 	}
-	product, err := service.GetProductByID(c.Request.Context(), id)
+	product, err := p.productService.GetProductByID(c.Request.Context(), id)
 	if err != nil {
 		handleError(c, err, response.CodeQueryProductFailed, "请求商品详情失败")
 		return
@@ -61,25 +83,25 @@ func GetProductByID(c *gin.Context) {
 	response.Success(c, product)
 }
 
-func OnSaleProduct(c *gin.Context) {
+func (p *ProductHandler) OnSaleProduct(c *gin.Context) {
 
 	id, ok := parsePositiveID(c, "id")
 	if !ok {
 		return
 	}
-	if err := service.OnSaleProduct(c.Request.Context(), id); err != nil {
+	if err := p.productService.OnSaleProduct(c.Request.Context(), id); err != nil {
 		handleError(c, err, response.CodeProductOnSaleFailed, "上架商品失败")
 		return
 	}
 	response.Success(c, nil)
 }
 
-func OffSaleProduct(c *gin.Context) {
+func (p *ProductHandler) OffSaleProduct(c *gin.Context) {
 	id, ok := parsePositiveID(c, "id")
 	if !ok {
 		return
 	}
-	if err := service.OffSaleProduct(c.Request.Context(), id); err != nil {
+	if err := p.productService.OffSaleProduct(c.Request.Context(), id); err != nil {
 		handleError(c, err, response.CodeProductOffSaleFailed, "下架商品失败")
 		return
 	}
