@@ -39,7 +39,7 @@ func InitDeps(logger *slog.Logger) (*Deps, error) {
 
 	redisClient, err := redis.InitRedis(cfg)
 	if err != nil {
-		return nil, err
+		logger.Warn("redis unavailable, product cache disabled", "err", err)
 	}
 
 	productCache := bizcache.NewProductCache(redisClient)

@@ -18,7 +18,7 @@ endif
 .PHONY: help run dev build clean \
 	fmt vet lint tidy mod-download mod-verify \
 	test test-verbose test-service test-redis test-all test-race coverage coverage-html \
-	check compose-config
+	check compose-config infra-up infra-down infra-ps infra-logs
 
 help:
 	@echo Usage: make target
@@ -44,6 +44,12 @@ help:
 	@echo   test-race       Run all tests with the race detector
 	@echo   coverage        Generate coverage.out
 	@echo   coverage-html   Generate coverage.html
+	@echo Infrastructure:
+	@echo   compose-config  Validate the Docker Compose configuration
+	@echo   infra-up        Start MySQL and Redis and wait until healthy
+	@echo   infra-down      Stop and remove infrastructure containers
+	@echo   infra-ps        Show infrastructure container status
+	@echo   infra-logs      Follow MySQL and Redis logs
 
 run:
 	$(GO) run ./cmd
@@ -115,5 +121,20 @@ coverage-html: coverage
 	$(GO) tool cover -html=coverage.out -o coverage.html
 
 check: fmt mod-verify vet test
+
+compose-config:
+	$(COMPOSE) config --quiet
+
+infra-up: compose-config
+	$(COMPOSE) up -d --wait mysql redis
+
+infra-down:
+	$(COMPOSE) down
+
+infra-ps:
+	$(COMPOSE) ps
+
+infra-logs:
+	$(COMPOSE) logs --follow mysql redis
 
 

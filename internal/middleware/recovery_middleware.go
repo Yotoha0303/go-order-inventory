@@ -33,7 +33,7 @@ func Recovery(logger *slog.Logger) gin.HandlerFunc {
 					response.Fail(
 						c,
 						http.StatusInternalServerError,
-						response.CodeParameterError,
+						response.CodeInternalServerError,
 						"server error",
 					)
 				}

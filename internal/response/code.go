@@ -42,3 +42,7 @@ const (
 	CodeOrderAlreadyPaid       = 4012
 	CodeOrderParameterError    = 4013
 )
+
+const (
+	CodeInternalServerError = 5000
+)

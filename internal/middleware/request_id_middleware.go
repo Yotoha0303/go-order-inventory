@@ -32,7 +32,7 @@ func RequestID() gin.HandlerFunc {
 
 		c.Request = c.Request.WithContext(ctx)
 
-		c.Header(RequestKeyID, requestID)
+		c.Header(RequestIDHeader, requestID)
 
 		c.Next()
 	}

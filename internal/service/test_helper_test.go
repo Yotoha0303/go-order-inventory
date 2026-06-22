@@ -24,7 +24,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		log.Fatalf("load config failed:%v", err)
 	}
 
-	testDB, err := database.InitTestDB(cfg.MySQL)
+	testDB, err := database.InitTestDB(cfg)
 	if err != nil {
 		t.Skipf("init test mysql db failed: %v", err)
 	}
