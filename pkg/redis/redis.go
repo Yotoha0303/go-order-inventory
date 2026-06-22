@@ -23,10 +23,6 @@ func buildRedisClient(cfg *config.Config) (*redis.Client, error) {
 
 	password := os.Getenv("REDIS_PASSWORD")
 
-	// if password == "" {
-	// 	return nil, ErrRedisPasswordNotFound
-	// }
-
 	if cfg.Redis.Addr == "" {
 		return nil, ErrRedisAddrNotFound
 	}

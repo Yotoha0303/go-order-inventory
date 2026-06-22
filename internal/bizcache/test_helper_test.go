@@ -2,41 +2,32 @@ package bizcache_test
 
 import (
 	"go-order-inventory/config"
-	"go-order-inventory/global"
 	"go-order-inventory/pkg/redis"
 	"os"
-	"sync"
 	"testing"
+
+	goredis "github.com/redis/go-redis/v9"
 )
 
-var testRedisOnce sync.Once
-var testRedisInitErr error
-
-func setupTestRedis(t *testing.T) {
+func setupTestRedis(t *testing.T) *goredis.Client {
 	t.Helper()
 
 	if os.Getenv("RUN_REDIS_TEST") != "1" {
 		t.Skip("skip redis integration test; set RUN_REDIS_TEST=1 to run")
 	}
 
-	testRedisOnce.Do(func() {
+	cfg, err := config.LoadConfig("../../config.yml")
+	if err != nil {
+		t.Skipf("load redis config failed: %v", err)
+	}
 
-		cfg, err := config.LoadConfig("../../config.yml")
-		if err != nil {
-			testRedisInitErr = err
-			return
-		}
-
-		client, err := redis.InitRedis(cfg)
-		if err != nil {
-			testRedisInitErr = err
-			return
-		}
-
-		global.Redis = client
+	client, err := redis.InitRedis(cfg)
+	if err != nil {
+		t.Skipf("init redis failed: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = client.Close()
 	})
 
-	if testRedisInitErr != nil {
-		t.Skipf("skip redis cache test, init redis failed: %v", testRedisInitErr)
-	}
+	return client
 }

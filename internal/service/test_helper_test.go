@@ -2,47 +2,43 @@ package service_test
 
 import (
 	"go-order-inventory/config"
-	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/service"
 	"go-order-inventory/pkg/database"
 	"log"
-	"sync"
 	"testing"
 
 	"github.com/joho/godotenv"
+	"gorm.io/gorm"
 )
 
-var testDBOnce sync.Once
-var testDBInitErr error
-
-func setupTestDB(t *testing.T) {
+func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	testDBOnce.Do(func() {
-		_ = godotenv.Load("../../.env")
+	_ = godotenv.Load("../../.env")
 
-		cfg, err := config.LoadConfig("../../config.yml")
-		if err != nil {
-			log.Fatalf("load config failed:%v", err)
-		}
-
-		global.DB, testDBInitErr = database.InitTestDB(cfg.MySQL)
-		if testDBInitErr != nil {
-			return
-		}
-		testDBInitErr = global.DB.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}, &model.Order{}, &model.OrderItem{})
-	})
-
-	if testDBInitErr != nil {
-		t.Skipf("skip integration test, init test db failed: %v", testDBInitErr)
+	cfg, err := config.LoadConfig("../../config.yml")
+	if err != nil {
+		log.Fatalf("load config failed:%v", err)
 	}
 
-	cleanTables(t)
+	testDB, err := database.InitTestDB(cfg.MySQL)
+	if err != nil {
+		t.Skipf("init test mysql db failed: %v", err)
+	}
+	err = testDB.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}, &model.Order{}, &model.OrderItem{})
+
+	if err != nil {
+		t.Skipf("skip integration test, init test db failed: %v", err)
+	}
+
+	cleanTables(t, testDB)
+
+	return testDB
 }
 
-func cleanTables(t *testing.T) {
+func cleanTables(t *testing.T, db *gorm.DB) {
 	t.Helper()
 
 	tables := []string{
@@ -54,13 +50,13 @@ func cleanTables(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		if err := global.DB.Exec("DELETE FROM " + table).Error; err != nil {
+		if err := db.Exec("DELETE FROM " + table).Error; err != nil {
 			t.Fatalf("clean table %s failed: %v", table, err)
 		}
 	}
 }
 
-func seedProduct(t *testing.T, name string, priceFen int64, status int8) *model.Product {
+func seedProduct(t *testing.T, testDB *gorm.DB, name string, priceFen int64, status int8) *model.Product {
 	t.Helper()
 	p := &model.Product{
 		Name:        name,
@@ -68,28 +64,28 @@ func seedProduct(t *testing.T, name string, priceFen int64, status int8) *model.
 		PriceFen:    priceFen,
 		Status:      status,
 	}
-	if err := global.DB.Create(p).Error; err != nil {
+	if err := testDB.Create(p).Error; err != nil {
 		t.Fatalf("seed product failed: %v", err)
 	}
 	return p
 }
 
-func seedInventory(t *testing.T, productID int64, qty int64) *model.Inventory {
+func seedInventory(t *testing.T, testDB *gorm.DB, productID int64, qty int64) *model.Inventory {
 	t.Helper()
 	inv := &model.Inventory{
 		ProductID:     productID,
 		StockQuantity: qty,
 	}
-	if err := global.DB.Create(inv).Error; err != nil {
+	if err := testDB.Create(inv).Error; err != nil {
 		t.Fatalf("seed inventory failed: %v", err)
 	}
 	return inv
 }
 
-func seedPendingOrder(t *testing.T) *model.Order {
+func seedPendingOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 	t.Helper()
 
-	db := global.DB
+	db := testDB
 	orderSvc := service.NewOrderService(db)
 	name := "order pending test"
 	priceFen := int64(100)
@@ -129,18 +125,18 @@ func seedPendingOrder(t *testing.T) *model.Order {
 	return order
 }
 
-func seedPaidOrder(t *testing.T) *model.Order {
+func seedPaidOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 	t.Helper()
 
-	orderSvc := service.NewOrderService(global.DB)
+	orderSvc := service.NewOrderService(testDB)
 	name := "order paid test"
 	priceFen := int64(100)
 	qty := int64(50)
 	orderQty := int64(25)
 
-	product := seedProduct(t, name, priceFen, model.ProductStatusOnSale)
+	product := seedProduct(t, testDB, name, priceFen, model.ProductStatusOnSale)
 
-	seedInventory(t, product.ID, qty)
+	seedInventory(t, testDB, product.ID, qty)
 
 	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
@@ -158,26 +154,13 @@ func seedPaidOrder(t *testing.T) *model.Order {
 	return order
 }
 
-func seedFinishedOrder(t *testing.T) *model.Order {
+func seedFinishedOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 	t.Helper()
 
-	orderSvc := service.NewOrderService(global.DB)
-	order := seedPaidOrder(t)
+	orderSvc := service.NewOrderService(testDB)
+	order := seedPaidOrder(t, testDB)
 
 	if err := orderSvc.FinishOrder(order.ID); err != nil {
-		t.Fatalf("finish order failed: %v", err)
-	}
-
-	return order
-}
-
-func seedCancelledOrder(t *testing.T) *model.Order {
-	t.Helper()
-
-	orderSvc := service.NewOrderService(global.DB)
-	order := seedPendingOrder(t)
-
-	if err := orderSvc.CancelOrder(order.ID); err != nil {
 		t.Fatalf("finish order failed: %v", err)
 	}
 
@@ -191,10 +174,10 @@ type seededOrderContext struct {
 	OrderQty int64
 }
 
-func seedPendingOrderContext(t *testing.T) seededOrderContext {
+func seedPendingOrderContext(t *testing.T, testDB *gorm.DB) seededOrderContext {
 	t.Helper()
 
-	db := global.DB
+	db := testDB
 	orderSvc := service.NewOrderService(db)
 	name := "order pending test"
 	priceFen := int64(100)

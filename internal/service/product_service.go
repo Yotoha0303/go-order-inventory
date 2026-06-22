@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"go-order-inventory/internal/bizcache"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"strings"
@@ -47,7 +46,7 @@ func (p *ProductService) ListProducts() ([]*model.Product, error) {
 
 func (p *ProductService) GetProductByID(ctx context.Context, id int64) (*model.Product, error) {
 
-	if product, ok := bizcache.GetProductDetail(ctx, id); ok {
+	if product, ok := p.cache.GetProductDetail(ctx, id); ok {
 		return product, nil
 	}
 
@@ -60,7 +59,7 @@ func (p *ProductService) GetProductByID(ctx context.Context, id int64) (*model.P
 		return nil, err
 	}
 
-	bizcache.SetProductDetail(ctx, product)
+	p.cache.SetProductDetail(ctx, product)
 
 	return product, nil
 }
@@ -85,7 +84,7 @@ func (p *ProductService) OnSaleProduct(ctx context.Context, id int64) error {
 		return ErrProductOnSaleFailed
 	}
 
-	bizcache.DeleteProductDetailCache(ctx, id)
+	p.cache.DeleteProductDetailCache(ctx, id)
 
 	return nil
 }
@@ -111,7 +110,7 @@ func (p *ProductService) OffSaleProduct(ctx context.Context, id int64) error {
 		return ErrProductOffSaleFailed
 	}
 
-	bizcache.DeleteProductDetailCache(ctx, id)
+	p.cache.DeleteProductDetailCache(ctx, id)
 
 	return nil
 }

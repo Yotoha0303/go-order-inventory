@@ -1,6 +1,7 @@
 package router
 
 import (
+	"go-order-inventory/internal/bizcache"
 	"go-order-inventory/internal/handler"
 	"go-order-inventory/internal/middleware"
 	"go-order-inventory/internal/service"
@@ -8,10 +9,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
-func SetupRouters(db *gorm.DB, logger *slog.Logger, timeout time.Duration) *gin.Engine {
+func SetupRouters(db *gorm.DB, logger *slog.Logger, timeout time.Duration, redisClient *redis.Client) *gin.Engine {
 	r := gin.New()
 
 	r.Use(
@@ -20,8 +22,8 @@ func SetupRouters(db *gorm.DB, logger *slog.Logger, timeout time.Duration) *gin.
 		middleware.TimeoutMiddleware(timeout),
 		middleware.Recovery(logger),
 	)
-
-	productService := service.NewProductService(db)
+	productCache := bizcache.NewProductCache(redisClient)
+	productService := service.NewProductService(db, productCache)
 	inventoryService := service.NewInventoryService(db)
 	stockLogService := service.NewStockLogService(db)
 	orderService := service.NewOrderService(db)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
 	"log"
 	"time"
@@ -12,21 +11,31 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+type ProductCache struct {
+	redisClient *redis.Client
+}
+
+func NewProductCache(redisClient *redis.Client) *ProductCache {
+	return &ProductCache{
+		redisClient: redisClient,
+	}
+}
+
 const ProductDetailCacheTTL = 10 * time.Minute
 
 func ProductDetailCacheKey(productID int64) string {
 	return fmt.Sprintf("product:detail:%d", productID)
 }
 
-func GetProductDetail(ctx context.Context, productID int64) (*model.Product, bool) {
-	if global.Redis == nil {
+func (p *ProductCache) GetProductDetail(ctx context.Context, productID int64) (*model.Product, bool) {
+	if p.redisClient == nil {
 		return nil, false
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
 
-	val, err := global.Redis.Get(ctx, ProductDetailCacheKey(productID)).Result()
+	val, err := p.redisClient.Get(ctx, ProductDetailCacheKey(productID)).Result()
 	if err != nil {
 
 		if err == redis.Nil {
@@ -45,8 +54,8 @@ func GetProductDetail(ctx context.Context, productID int64) (*model.Product, boo
 	return &product, true
 }
 
-func SetProductDetail(ctx context.Context, product *model.Product) {
-	if global.Redis == nil || product == nil {
+func (p *ProductCache) SetProductDetail(ctx context.Context, product *model.Product) {
+	if p.redisClient == nil || product == nil {
 		return
 	}
 
@@ -58,16 +67,16 @@ func SetProductDetail(ctx context.Context, product *model.Product) {
 	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
 
-	_ = global.Redis.Set(ctx, ProductDetailCacheKey(product.ID), data, ProductDetailCacheTTL).Err()
+	_ = p.redisClient.Set(ctx, ProductDetailCacheKey(product.ID), data, ProductDetailCacheTTL).Err()
 }
 
-func DeleteProductDetailCache(ctx context.Context, productID int64) {
-	if global.Redis == nil {
+func (p *ProductCache) DeleteProductDetailCache(ctx context.Context, productID int64) {
+	if p.redisClient == nil {
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
 
-	_ = global.Redis.Del(ctx, ProductDetailCacheKey(productID)).Err()
+	_ = p.redisClient.Del(ctx, ProductDetailCacheKey(productID)).Err()
 }

@@ -2,23 +2,24 @@ package service_test
 
 import (
 	"errors"
-	"go-order-inventory/global"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/service"
 	"testing"
+
+	"gorm.io/gorm"
 )
 
-func newOrderService(t *testing.T) *service.OrderService {
+func newOrderService(t *testing.T) (*gorm.DB, *service.OrderService) {
 	t.Helper()
-	setupTestDB(t)
-	return service.NewOrderService(global.DB)
+	testDB := setupTestDB(t)
+	return testDB, service.NewOrderService(testDB)
 }
 
 func TestCreateOrder_InsufficientStock(t *testing.T) {
-	orderSvc := newOrderService(t)
-	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
-	seedInventory(t, p.ID, 1)
+	testDB, orderSvc := newOrderService(t)
+	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, p.ID, 1)
 
 	_, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
@@ -31,9 +32,9 @@ func TestCreateOrder_InsufficientStock(t *testing.T) {
 }
 
 func TestCreateOrder_Success(t *testing.T) {
-	orderSvc := newOrderService(t)
-	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
-	seedInventory(t, p.ID, 10)
+	testDB, orderSvc := newOrderService(t)
+	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, p.ID, 10)
 
 	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
@@ -51,7 +52,7 @@ func TestCreateOrder_Success(t *testing.T) {
 	}
 
 	var inv model.Inventory
-	if err := global.DB.Where("product_id = ?", p.ID).First(&inv).Error; err != nil {
+	if err := testDB.Where("product_id = ?", p.ID).First(&inv).Error; err != nil {
 		t.Fatalf("query inventory failed: %v", err)
 	}
 	if inv.StockQuantity != 7 {
@@ -59,7 +60,7 @@ func TestCreateOrder_Success(t *testing.T) {
 	}
 
 	var stockLog model.StockLog
-	if err := global.DB.Where("product_id = ? AND biz_id = ?", p.ID, order.ID).First(&stockLog).Error; err != nil {
+	if err := testDB.Where("product_id = ? AND biz_id = ?", p.ID, order.ID).First(&stockLog).Error; err != nil {
 		t.Fatalf("query stock log failed:%v", err)
 	}
 
@@ -78,14 +79,14 @@ func TestCreateOrder_Success(t *testing.T) {
 }
 
 func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
-	orderSvc := newOrderService(t)
+	testDB, orderSvc := newOrderService(t)
 
 	var initQuantity int64 = 10
 	var PriceFen int64 = 100
 	var orderedQuantity int64 = 1
 
-	p := seedProduct(t, "pay-order-product", PriceFen, model.ProductStatusOnSale)
-	seedInventory(t, p.ID, initQuantity)
+	p := seedProduct(t, testDB, "pay-order-product", PriceFen, model.ProductStatusOnSale)
+	seedInventory(t, testDB, p.ID, initQuantity)
 
 	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
@@ -103,7 +104,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 		t.Fatalf("expected order status pending,got %d", order.Status)
 	}
 	var invBeforePay model.Inventory
-	if err := global.DB.Where("product_id = ?", p.ID).First(&invBeforePay).Error; err != nil {
+	if err := testDB.Where("product_id = ?", p.ID).First(&invBeforePay).Error; err != nil {
 		t.Fatalf("query inventory before pay failed: %v", err)
 	}
 
@@ -113,7 +114,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 	}
 
 	var stockLogCountBeforePay int64
-	if err := global.DB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ? ", p.ID, order.ID).Count(&stockLogCountBeforePay).Error; err != nil {
+	if err := testDB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ? ", p.ID, order.ID).Count(&stockLogCountBeforePay).Error; err != nil {
 		t.Fatalf("count stock logs before pay failed: %v", err)
 	}
 
@@ -126,7 +127,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 	}
 
 	var paidOrder model.Order
-	if err := global.DB.First(&paidOrder, order.ID).Error; err != nil {
+	if err := testDB.First(&paidOrder, order.ID).Error; err != nil {
 		t.Fatalf("query paid order failed:%v", err)
 	}
 
@@ -139,7 +140,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 	}
 
 	var invAfterPay model.Inventory
-	if err := global.DB.Where("product_id = ?", p.ID).First(&invAfterPay).Error; err != nil {
+	if err := testDB.Where("product_id = ?", p.ID).First(&invAfterPay).Error; err != nil {
 		t.Fatalf("query inventory after pay failed:%v", err)
 	}
 
@@ -148,7 +149,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 	}
 
 	var stockLogCountAfterPay int64
-	if err := global.DB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ?", p.ID, order.ID).Count(&stockLogCountAfterPay).Error; err != nil {
+	if err := testDB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ?", p.ID, order.ID).Count(&stockLogCountAfterPay).Error; err != nil {
 		t.Fatalf("count stock logs after pay failed: %v", err)
 	}
 
@@ -159,9 +160,9 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 }
 
 func TestPayAndFinishOrder_Success(t *testing.T) {
-	orderSvc := newOrderService(t)
-	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
-	seedInventory(t, p.ID, 10)
+	testDB, orderSvc := newOrderService(t)
+	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, p.ID, 10)
 	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: p.ID, Quantity: 1},
@@ -179,7 +180,7 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 	}
 
 	var got model.Order
-	if err := global.DB.First(&got, order.ID).Error; err != nil {
+	if err := testDB.First(&got, order.ID).Error; err != nil {
 		t.Fatalf("query order failed: %v", err)
 	}
 	if got.Status != model.OrderStatusFinished {
@@ -188,9 +189,9 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 }
 
 func TestPayOrder_AlreadyPaid_ReturnsError(t *testing.T) {
-	orderSvc := newOrderService(t)
+	testDB, orderSvc := newOrderService(t)
 
-	order := seedPaidOrder(t)
+	order := seedPaidOrder(t,testDB)
 
 	err := orderSvc.PayOrder(order.ID)
 	if !errors.Is(err, service.ErrOrderAlreadyPaid) {
@@ -198,7 +199,7 @@ func TestPayOrder_AlreadyPaid_ReturnsError(t *testing.T) {
 	}
 
 	var got model.Order
-	if err := global.DB.First(&got, order.ID).Error; err != nil {
+	if err := testDB.First(&got, order.ID).Error; err != nil {
 		t.Fatalf("query order failed: %v", err)
 	}
 
@@ -208,9 +209,9 @@ func TestPayOrder_AlreadyPaid_ReturnsError(t *testing.T) {
 }
 
 func TestFinishOrder_PendingOrder_ReturnsNotPaidError(t *testing.T) {
-	orderSvc := newOrderService(t)
+	testDB, orderSvc := newOrderService(t)
 
-	order := seedPendingOrder(t)
+	order := seedPendingOrder(t,testDB)
 
 	err := orderSvc.FinishOrder(order.ID)
 	if !errors.Is(err, service.ErrOrderNotPaid) {
@@ -218,7 +219,7 @@ func TestFinishOrder_PendingOrder_ReturnsNotPaidError(t *testing.T) {
 	}
 
 	var got model.Order
-	if err := global.DB.First(&got, order.ID).Error; err != nil {
+	if err := testDB.First(&got, order.ID).Error; err != nil {
 		t.Fatalf("query order failed: %v", err)
 	}
 
@@ -232,10 +233,10 @@ func TestFinishOrder_PendingOrder_ReturnsNotPaidError(t *testing.T) {
 }
 
 func TestCancelOrder_Success(t *testing.T) {
-	orderSvc := newOrderService(t)
+	testDB, orderSvc := newOrderService(t)
 
-	db := global.DB
-	ctx := seedPendingOrderContext(t)
+	db := testDB
+	ctx := seedPendingOrderContext(t, testDB)
 
 	if err := orderSvc.CancelOrder(ctx.Order.ID); err != nil {
 		t.Fatalf("expected order cancel success,got %v", err)
@@ -279,10 +280,10 @@ func TestCancelOrder_Success(t *testing.T) {
 }
 
 func TestPaidOrder_UnableCancel_ReturnsError(t *testing.T) {
-	orderSvc := newOrderService(t)
+	testDB, orderSvc := newOrderService(t)
 
-	order := seedPaidOrder(t)
-	db := global.DB
+	order := seedPaidOrder(t, testDB)
+	db := testDB
 
 	err := orderSvc.CancelOrder(order.ID)
 	if !errors.Is(err, service.ErrOrderAlreadyPaid) {
@@ -304,11 +305,11 @@ func TestPaidOrder_UnableCancel_ReturnsError(t *testing.T) {
 }
 
 func TestFinishedOrder_UnableCancel_ReturnsError(t *testing.T) {
-	orderSvc := newOrderService(t)
+	testDB, orderSvc := newOrderService(t)
 
-	db := global.DB
+	db := testDB
 
-	order := seedFinishedOrder(t)
+	order := seedFinishedOrder(t, testDB)
 
 	err := orderSvc.CancelOrder(order.ID)
 	if !errors.Is(err, service.ErrOrderAlreadyFinished) {
@@ -330,10 +331,10 @@ func TestFinishedOrder_UnableCancel_ReturnsError(t *testing.T) {
 }
 
 func TestCancelOrder_CancelledOrder_Idempotent(t *testing.T) {
-	orderSvc := newOrderService(t)
+	testDB, orderSvc := newOrderService(t)
 
-	ctx := seedPendingOrderContext(t)
-	db := global.DB
+	ctx := seedPendingOrderContext(t, testDB)
+	db := testDB
 
 	if err := orderSvc.CancelOrder(ctx.Order.ID); err != nil {
 		t.Fatalf("order cancenl failed: %v", err)

@@ -3,29 +3,52 @@ package service_test
 import (
 	"context"
 	"errors"
-	"go-order-inventory/global"
+	"go-order-inventory/internal/bizcache"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/service"
 	"strings"
 	"testing"
+
+	"gorm.io/gorm"
 )
 
-func newProductService(t *testing.T) *service.ProductService {
+func newProductService(t *testing.T) (*gorm.DB, *service.ProductService) {
 	t.Helper()
-	setupTestDB(t)
-	return service.NewProductService(global.DB)
+	testDB := setupTestDB(t)
+	cache := bizcache.NewProductCache(nil)
+	productSvc := service.NewProductService(testDB, cache)
+	return testDB, productSvc
+}
+
+type fakeProductCache struct {
+	product          *model.Product
+	hit              bool
+	setProduct       *model.Product
+	deletedProductID int64
+}
+
+func (f *fakeProductCache) GetProductDetail(context.Context, int64) (*model.Product, bool) {
+	return f.product, f.hit
+}
+
+func (f *fakeProductCache) SetProductDetail(_ context.Context, product *model.Product) {
+	f.setProduct = product
+}
+
+func (f *fakeProductCache) DeleteProductDetailCache(_ context.Context, productID int64) {
+	f.deletedProductID = productID
 }
 
 func TestCreateProduct_Success(t *testing.T) {
-	productStr := newProductService(t)
+	testDB, productSvc := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "test product",
 		Description: "desc",
 		PriceFen:    199,
 	}
-	product, err := productStr.CreateProduct(req)
+	product, err := productSvc.CreateProduct(req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -48,7 +71,7 @@ func TestCreateProduct_Success(t *testing.T) {
 
 	var saved model.Product
 
-	if err := global.DB.First(&saved, product.ID).Error; err != nil {
+	if err := testDB.First(&saved, product.ID).Error; err != nil {
 		t.Fatalf("query product record failed: %v", err)
 	}
 
@@ -59,7 +82,7 @@ func TestCreateProduct_Success(t *testing.T) {
 }
 
 func TestCreateProduct_InvalidPrice(t *testing.T) {
-	productStr := newProductService(t)
+	_, productSvc := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "test product",
@@ -67,7 +90,7 @@ func TestCreateProduct_InvalidPrice(t *testing.T) {
 		PriceFen:    0,
 	}
 
-	product, err := productStr.CreateProduct(req)
+	product, err := productSvc.CreateProduct(req)
 	if !errors.Is(err, service.ErrInvalidProductPrice) {
 		t.Fatalf("expected ErrInvalidProductPrice, got err=%v", err)
 	}
@@ -77,7 +100,7 @@ func TestCreateProduct_InvalidPrice(t *testing.T) {
 }
 
 func TestCreateProduct_SuccessTrimmed(t *testing.T) {
-	productStr := newProductService(t)
+	_, productSvc := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "  apple  ",
@@ -85,7 +108,7 @@ func TestCreateProduct_SuccessTrimmed(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	p, err := productStr.CreateProduct(req)
+	p, err := productSvc.CreateProduct(req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -98,7 +121,7 @@ func TestCreateProduct_SuccessTrimmed(t *testing.T) {
 }
 
 func TestCreateProduct_EmptyName(t *testing.T) {
-	productStr := newProductService(t)
+	testDB, productSvc := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "",
@@ -106,7 +129,7 @@ func TestCreateProduct_EmptyName(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := productStr.CreateProduct(req)
+	product, err := productSvc.CreateProduct(req)
 	if !errors.Is(err, service.ErrInvalidProductName) {
 		t.Fatalf("expected ErrInvalidProductName, got err=%v", err)
 	}
@@ -116,7 +139,7 @@ func TestCreateProduct_EmptyName(t *testing.T) {
 	}
 
 	var count int64
-	if err := global.DB.Model(&model.Product{}).Where("description = ? AND name = ? ", req.Description, req.Name).Count(&count).Error; err != nil {
+	if err := testDB.Model(&model.Product{}).Where("description = ? AND name = ? ", req.Description, req.Name).Count(&count).Error; err != nil {
 		t.Fatalf("count products failed: %v", err)
 	}
 	if count != 0 {
@@ -125,7 +148,7 @@ func TestCreateProduct_EmptyName(t *testing.T) {
 }
 
 func TestCreateProduct_DescriptionTooLong(t *testing.T) {
-	productStr := newProductService(t)
+	testDB, productSvc := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "description-too-long-product",
@@ -133,7 +156,7 @@ func TestCreateProduct_DescriptionTooLong(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := productStr.CreateProduct(req)
+	product, err := productSvc.CreateProduct(req)
 	if !errors.Is(err, service.ErrInvalidProductDescription) {
 		t.Fatalf("expect desciption less 500 character:,got %v", err)
 	}
@@ -143,7 +166,7 @@ func TestCreateProduct_DescriptionTooLong(t *testing.T) {
 	}
 
 	var count int64
-	if err := global.DB.Model(&model.Product{}).Where("name = ? AND price_fen = ?", req.Name, 199).Count(&count).Error; err != nil {
+	if err := testDB.Model(&model.Product{}).Where("name = ? AND price_fen = ?", req.Name, 199).Count(&count).Error; err != nil {
 		t.Fatalf("count products failed: %v", err)
 	}
 	if count != 0 {
@@ -152,7 +175,7 @@ func TestCreateProduct_DescriptionTooLong(t *testing.T) {
 }
 
 func TestCreateProduct_DescriptionExactly500(t *testing.T) {
-	productStr := newProductService(t)
+	testDB, productSvc := newProductService(t)
 
 	req := request.CreateProductRequest{
 		Name:        "description exactly 500",
@@ -160,7 +183,7 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := productStr.CreateProduct(req)
+	product, err := productSvc.CreateProduct(req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -194,7 +217,7 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 	}
 
 	var saved model.Product
-	if err := global.DB.First(&saved, product.ID).Error; err != nil {
+	if err := testDB.First(&saved, product.ID).Error; err != nil {
 		t.Fatalf("query product failed: %v", err)
 	}
 
@@ -204,12 +227,12 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 }
 
 func TestListProducts_OnlyOffSale(t *testing.T) {
-	productStr := newProductService(t)
+	testDB, productSvc := newProductService(t)
 
-	seedProduct(t, "off-sale", 100, model.ProductStatusOffSale)
-	seedProduct(t, "on-sale", 100, model.ProductStatusOnSale)
+	seedProduct(t, testDB, "off-sale", 100, model.ProductStatusOffSale)
+	seedProduct(t, testDB, "on-sale", 100, model.ProductStatusOnSale)
 
-	products, err := productStr.ListProducts()
+	products, err := productSvc.ListProducts()
 	if err != nil {
 		t.Fatalf("list products failed: %v", err)
 	}
@@ -223,44 +246,94 @@ func TestListProducts_OnlyOffSale(t *testing.T) {
 }
 
 func TestGetProductByID_NotFound(t *testing.T) {
-	productStr := newProductService(t)
+	_, productSvc := newProductService(t)
 
-	_, err := productStr.GetProductByID(context.Background(), 99999)
+	_, err := productSvc.GetProductByID(context.Background(), 99999)
 	if !errors.Is(err, service.ErrProductNotFound) {
 		t.Fatalf("expected ErrProductNotFound, got %v", err)
 	}
 }
 
-func TestOnSaleProduct_Success(t *testing.T) {
-	productStr := newProductService(t)
+func TestGetProductByID_CacheHit(t *testing.T) {
+	expected := &model.Product{
+		ID:       1001,
+		Name:     "cached product",
+		PriceFen: 100,
+		Status:   model.ProductStatusOnSale,
+	}
+	cache := &fakeProductCache{product: expected, hit: true}
+	productSvc := service.NewProductService(nil, cache)
 
-	p := seedProduct(t, "p1", 100, model.ProductStatusOffSale)
-	if err := productStr.OnSaleProduct(context.Background(), p.ID); err != nil {
+	got, err := productSvc.GetProductByID(context.Background(), expected.ID)
+	if err != nil {
+		t.Fatalf("get cached product failed: %v", err)
+	}
+	if got != expected {
+		t.Fatalf("expected cached product %+v, got %+v", expected, got)
+	}
+	if cache.setProduct != nil {
+		t.Fatalf("cache hit should not set cache, got %+v", cache.setProduct)
+	}
+}
+
+func TestGetProductByID_CacheMissSetsCache(t *testing.T) {
+	testDB := setupTestDB(t)
+	expected := seedProduct(t, testDB, "cache-miss-product", 100, model.ProductStatusOnSale)
+	cache := &fakeProductCache{}
+	productSvc := service.NewProductService(testDB, cache)
+
+	got, err := productSvc.GetProductByID(context.Background(), expected.ID)
+	if err != nil {
+		t.Fatalf("get product failed: %v", err)
+	}
+	if got.ID != expected.ID {
+		t.Fatalf("expected product ID %d, got %d", expected.ID, got.ID)
+	}
+	if cache.setProduct == nil || cache.setProduct.ID != expected.ID {
+		t.Fatalf("expected product %d to be cached, got %+v", expected.ID, cache.setProduct)
+	}
+}
+
+func TestOnSaleProduct_Success(t *testing.T) {
+	testDB := setupTestDB(t)
+	cache := &fakeProductCache{}
+	productSvc := service.NewProductService(testDB, cache)
+
+	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOffSale)
+	if err := productSvc.OnSaleProduct(context.Background(), p.ID); err != nil {
 		t.Fatalf("on sale failed: %v", err)
 	}
 
 	var got model.Product
-	if err := global.DB.First(&got, p.ID).Error; err != nil {
+	if err := testDB.First(&got, p.ID).Error; err != nil {
 		t.Fatalf("query product failed: %v", err)
 	}
 	if got.Status != model.ProductStatusOnSale {
 		t.Fatalf("expected on-sale status, got %d", got.Status)
 	}
+	if cache.deletedProductID != p.ID {
+		t.Fatalf("expected cache for product %d to be deleted, got %d", p.ID, cache.deletedProductID)
+	}
 }
 
 func TestOffSaleProduct_Success(t *testing.T) {
-	productStr := newProductService(t)
+	testDB := setupTestDB(t)
+	cache := &fakeProductCache{}
+	productSvc := service.NewProductService(testDB, cache)
 
-	p := seedProduct(t, "p1", 100, model.ProductStatusOnSale)
-	if err := productStr.OffSaleProduct(context.Background(), p.ID); err != nil {
+	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
+	if err := productSvc.OffSaleProduct(context.Background(), p.ID); err != nil {
 		t.Fatalf("off sale failed: %v", err)
 	}
 
 	var got model.Product
-	if err := global.DB.First(&got, p.ID).Error; err != nil {
+	if err := testDB.First(&got, p.ID).Error; err != nil {
 		t.Fatalf("query product failed: %v", err)
 	}
 	if got.Status != model.ProductStatusOffSale {
 		t.Fatalf("expected off-sale status, got %d", got.Status)
+	}
+	if cache.deletedProductID != p.ID {
+		t.Fatalf("expected cache for product %d to be deleted, got %d", p.ID, cache.deletedProductID)
 	}
 }
