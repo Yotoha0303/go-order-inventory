@@ -1,13 +1,15 @@
 package service
 
 import (
+	"context"
+	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 )
 
-func (p *StockLogService) CreateStockLog(log *model.StockLog) error {
-	return p.daoStore.CreateStockLog(p.db, log)
+func (p *StockLogService) CreateStockLog(ctx context.Context, log *model.StockLog) error {
+	return dao.CreateStockLog(ctx, p.db, log)
 }
 
-func (p *StockLogService) ListStockLogsByProductID(productID *int64) ([]*model.StockLog, error) {
-	return p.daoStore.ListStockLogsByProductID(p.db, productID)
+func (p *StockLogService) ListStockLogsByProductID(ctx context.Context, productID *int64) ([]*model.StockLog, error) {
+	return dao.ListStockLogsByProductID(ctx, p.db, productID)
 }

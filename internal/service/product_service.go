@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (p *ProductService) CreateProduct(req request.CreateProductRequest) (*model.Product, error) {
+func (p *ProductService) CreateProduct(ctx context.Context, req request.CreateProductRequest) (*model.Product, error) {
 	name := strings.TrimSpace(req.Name)
 	description := strings.TrimSpace(req.Description)
 
@@ -33,15 +34,15 @@ func (p *ProductService) CreateProduct(req request.CreateProductRequest) (*model
 		Status:      model.ProductStatusOffSale,
 	}
 
-	if err := p.daoStore.CreateProduct(p.db, product); err != nil {
+	if err := dao.CreateProduct(ctx, p.db, product); err != nil {
 		return nil, err
 	}
 
 	return product, nil
 }
 
-func (p *ProductService) ListProducts() ([]*model.Product, error) {
-	return p.daoStore.ListProducts(p.db, model.ProductStatusOffSale)
+func (p *ProductService) ListProducts(ctx context.Context) ([]*model.Product, error) {
+	return dao.ListProducts(ctx, p.db, model.ProductStatusOffSale)
 }
 
 func (p *ProductService) GetProductByID(ctx context.Context, id int64) (*model.Product, error) {
@@ -50,7 +51,7 @@ func (p *ProductService) GetProductByID(ctx context.Context, id int64) (*model.P
 		return product, nil
 	}
 
-	product, err := p.daoStore.GetProductByID(p.db, id)
+	product, err := dao.GetProductByID(ctx, p.db, id)
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -66,7 +67,7 @@ func (p *ProductService) GetProductByID(ctx context.Context, id int64) (*model.P
 
 func (p *ProductService) OnSaleProduct(ctx context.Context, id int64) error {
 
-	product, err := p.daoStore.GetProductByID(p.db, id)
+	product, err := dao.GetProductByID(ctx, p.db, id)
 	if err != nil {
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -80,7 +81,7 @@ func (p *ProductService) OnSaleProduct(ctx context.Context, id int64) error {
 		return nil
 	}
 
-	if err := p.daoStore.UpdateProductStatus(p.db, product.ID, model.ProductStatusOnSale); err != nil {
+	if err := dao.UpdateProductStatus(ctx, p.db, product.ID, model.ProductStatusOnSale); err != nil {
 		return ErrProductOnSaleFailed
 	}
 
@@ -91,7 +92,7 @@ func (p *ProductService) OnSaleProduct(ctx context.Context, id int64) error {
 
 func (p *ProductService) OffSaleProduct(ctx context.Context, id int64) error {
 
-	product, err := p.daoStore.GetProductByID(p.db, id)
+	product, err := dao.GetProductByID(ctx, p.db, id)
 
 	if err != nil {
 
@@ -106,7 +107,7 @@ func (p *ProductService) OffSaleProduct(ctx context.Context, id int64) error {
 		return nil
 	}
 
-	if err := p.daoStore.UpdateProductStatus(p.db, product.ID, model.ProductStatusOffSale); err != nil {
+	if err := dao.UpdateProductStatus(ctx, p.db, product.ID, model.ProductStatusOffSale); err != nil {
 		return ErrProductOffSaleFailed
 	}
 

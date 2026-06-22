@@ -1,19 +1,20 @@
 package dao
 
 import (
+	"context"
 	"go-order-inventory/internal/model"
 
 	"gorm.io/gorm"
 )
 
-func CreateStockLog(db *gorm.DB, log *model.StockLog) error {
-	return db.Create(log).Error
+func CreateStockLog(ctx context.Context, db *gorm.DB, log *model.StockLog) error {
+	return db.WithContext(ctx).Create(log).Error
 }
 
-func ListStockLogsByProductID(db *gorm.DB, productID *int64) ([]*model.StockLog, error) {
+func ListStockLogsByProductID(ctx context.Context, db *gorm.DB, productID *int64) ([]*model.StockLog, error) {
 	var logs []*model.StockLog
 	if productID == nil || *productID == 0 {
-		return logs, db.Order("created_at desc").Find(&logs).Error
+		return logs, db.WithContext(ctx).Order("created_at desc").Find(&logs).Error
 	}
-	return logs, db.Where("product_id = ?", *productID).Order("created_at desc").Find(&logs).Error
+	return logs, db.WithContext(ctx).Where("product_id = ?", *productID).Order("created_at desc").Find(&logs).Error
 }

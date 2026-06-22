@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"go-order-inventory/config"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
@@ -112,7 +113,7 @@ func seedPendingOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 		t.Fatalf("create inventory failed: %v", err)
 	}
 
-	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID,
 				Quantity: orderQty},
@@ -138,7 +139,7 @@ func seedPaidOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 
 	seedInventory(t, testDB, product.ID, qty)
 
-	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID, Quantity: orderQty},
 		},
@@ -147,7 +148,7 @@ func seedPaidOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 		t.Fatalf("create order failed: %v", err)
 	}
 
-	if err := orderSvc.PayOrder(order.ID); err != nil {
+	if err := orderSvc.PayOrder(context.Background(), order.ID); err != nil {
 		t.Fatalf("pay order failed: %v", err)
 	}
 
@@ -160,7 +161,7 @@ func seedFinishedOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 	orderSvc := service.NewOrderService(testDB)
 	order := seedPaidOrder(t, testDB)
 
-	if err := orderSvc.FinishOrder(order.ID); err != nil {
+	if err := orderSvc.FinishOrder(context.Background(), order.ID); err != nil {
 		t.Fatalf("finish order failed: %v", err)
 	}
 
@@ -204,7 +205,7 @@ func seedPendingOrderContext(t *testing.T, testDB *gorm.DB) seededOrderContext {
 		t.Fatalf("create inventory failed: %v", err)
 	}
 
-	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID,
 				Quantity: orderQty},

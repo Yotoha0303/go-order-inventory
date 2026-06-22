@@ -1,37 +1,38 @@
 package dao
 
 import (
+	"context"
 	"go-order-inventory/internal/model"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-func CreateOrder(db *gorm.DB, order *model.Order) error {
-	return db.Create(order).Error
+func CreateOrder(ctx context.Context, db *gorm.DB, order *model.Order) error {
+	return db.WithContext(ctx).Create(order).Error
 }
 
-func CreateOrderItems(db *gorm.DB, items *model.OrderItem) error {
-	return db.Create(items).Error
+func CreateOrderItems(ctx context.Context, db *gorm.DB, items *model.OrderItem) error {
+	return db.WithContext(ctx).Create(items).Error
 }
 
-func GetOrderByID(db *gorm.DB, id int64) (*model.Order, error) {
+func GetOrderByID(ctx context.Context, db *gorm.DB, id int64) (*model.Order, error) {
 	var order model.Order
-	return &order, db.Model(&order).Where("id = ?", id).First(&order).Error
+	return &order, db.WithContext(ctx).Model(&order).Where("id = ?", id).First(&order).Error
 }
 
-func ListOrders(db *gorm.DB) ([]*model.Order, error) {
+func ListOrders(ctx context.Context, db *gorm.DB) ([]*model.Order, error) {
 	var orders []*model.Order
-	return orders, db.Model(&model.Order{}).Order("id DESC").Find(&orders).Error
+	return orders, db.WithContext(ctx).Model(&model.Order{}).Order("id DESC").Find(&orders).Error
 }
 
-func ListOrderItemsByOrderID(db *gorm.DB, orderID int64) ([]*model.OrderItem, error) {
+func ListOrderItemsByOrderID(ctx context.Context, db *gorm.DB, orderID int64) ([]*model.OrderItem, error) {
 	var items []*model.OrderItem
-	return items, db.Model(&model.OrderItem{}).Where("order_id = ?", orderID).Order("id ASC").Find(&items).Error
+	return items, db.WithContext(ctx).Model(&model.OrderItem{}).Where("order_id = ?", orderID).Order("id ASC").Find(&items).Error
 }
 
-func PatchOrderStatus(db *gorm.DB, orderID int64, fromStatus int8, toStatus int8, timeField string) (int64, error) {
-	result := db.Model(&model.Order{}).Where("id = ? AND status = ?", orderID, fromStatus).Updates(
+func PatchOrderStatus(ctx context.Context, db *gorm.DB, orderID int64, fromStatus int8, toStatus int8, timeField string) (int64, error) {
+	result := db.WithContext(ctx).Model(&model.Order{}).Where("id = ? AND status = ?", orderID, fromStatus).Updates(
 		map[string]interface{}{
 			"status":  toStatus,
 			timeField: time.Now(),
@@ -39,6 +40,6 @@ func PatchOrderStatus(db *gorm.DB, orderID int64, fromStatus int8, toStatus int8
 	return result.RowsAffected, result.Error
 }
 
-func PatchOrderTotalPriceFen(db *gorm.DB, orderID int64, totalPriceFen int64) error {
-	return db.Model(&model.Order{}).Where("id = ?", orderID).Update("total_amount_fen", totalPriceFen).Error
+func PatchOrderTotalPriceFen(ctx context.Context, db *gorm.DB, orderID int64, totalPriceFen int64) error {
+	return db.WithContext(ctx).Model(&model.Order{}).Where("id = ?", orderID).Update("total_amount_fen", totalPriceFen).Error
 }

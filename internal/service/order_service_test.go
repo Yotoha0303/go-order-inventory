@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"errors"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
@@ -21,7 +22,7 @@ func TestCreateOrder_InsufficientStock(t *testing.T) {
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
 	seedInventory(t, testDB, p.ID, 1)
 
-	_, err := orderSvc.CreateOrder(request.CreateOrderRequest{
+	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: p.ID, Quantity: 2},
 		},
@@ -36,7 +37,7 @@ func TestCreateOrder_Success(t *testing.T) {
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
 	seedInventory(t, testDB, p.ID, 10)
 
-	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: p.ID, Quantity: 3},
 		},
@@ -88,7 +89,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 	p := seedProduct(t, testDB, "pay-order-product", PriceFen, model.ProductStatusOnSale)
 	seedInventory(t, testDB, p.ID, initQuantity)
 
-	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{
 				ProductID: p.ID,
@@ -122,7 +123,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 		t.Fatalf("expected 1 stock log after create order,got %d", stockLogCountBeforePay)
 	}
 
-	if err := orderSvc.PayOrder(order.ID); err != nil {
+	if err := orderSvc.PayOrder(context.Background(), order.ID); err != nil {
 		t.Fatalf("pay order failed:%v", err)
 	}
 
@@ -163,7 +164,7 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 	testDB, orderSvc := newOrderService(t)
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
 	seedInventory(t, testDB, p.ID, 10)
-	order, err := orderSvc.CreateOrder(request.CreateOrderRequest{
+	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: p.ID, Quantity: 1},
 		},
@@ -172,10 +173,10 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 		t.Fatalf("create order failed: %v", err)
 	}
 
-	if err := orderSvc.PayOrder(order.ID); err != nil {
+	if err := orderSvc.PayOrder(context.Background(), order.ID); err != nil {
 		t.Fatalf("pay order failed: %v", err)
 	}
-	if err := orderSvc.FinishOrder(order.ID); err != nil {
+	if err := orderSvc.FinishOrder(context.Background(), order.ID); err != nil {
 		t.Fatalf("finish order failed: %v", err)
 	}
 
@@ -191,9 +192,9 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 func TestPayOrder_AlreadyPaid_ReturnsError(t *testing.T) {
 	testDB, orderSvc := newOrderService(t)
 
-	order := seedPaidOrder(t,testDB)
+	order := seedPaidOrder(t, testDB)
 
-	err := orderSvc.PayOrder(order.ID)
+	err := orderSvc.PayOrder(context.Background(), order.ID)
 	if !errors.Is(err, service.ErrOrderAlreadyPaid) {
 		t.Fatalf("expected ErrOrderAlreadyPaid,got %v", err)
 	}
@@ -211,9 +212,9 @@ func TestPayOrder_AlreadyPaid_ReturnsError(t *testing.T) {
 func TestFinishOrder_PendingOrder_ReturnsNotPaidError(t *testing.T) {
 	testDB, orderSvc := newOrderService(t)
 
-	order := seedPendingOrder(t,testDB)
+	order := seedPendingOrder(t, testDB)
 
-	err := orderSvc.FinishOrder(order.ID)
+	err := orderSvc.FinishOrder(context.Background(), order.ID)
 	if !errors.Is(err, service.ErrOrderNotPaid) {
 		t.Fatalf("expected order unpaid is not finished,got %v", err)
 	}
@@ -238,7 +239,7 @@ func TestCancelOrder_Success(t *testing.T) {
 	db := testDB
 	ctx := seedPendingOrderContext(t, testDB)
 
-	if err := orderSvc.CancelOrder(ctx.Order.ID); err != nil {
+	if err := orderSvc.CancelOrder(context.Background(), ctx.Order.ID); err != nil {
 		t.Fatalf("expected order cancel success,got %v", err)
 	}
 
@@ -285,7 +286,7 @@ func TestPaidOrder_UnableCancel_ReturnsError(t *testing.T) {
 	order := seedPaidOrder(t, testDB)
 	db := testDB
 
-	err := orderSvc.CancelOrder(order.ID)
+	err := orderSvc.CancelOrder(context.Background(), order.ID)
 	if !errors.Is(err, service.ErrOrderAlreadyPaid) {
 		t.Fatalf("expected order cancel failed,got %v", err)
 	}
@@ -311,7 +312,7 @@ func TestFinishedOrder_UnableCancel_ReturnsError(t *testing.T) {
 
 	order := seedFinishedOrder(t, testDB)
 
-	err := orderSvc.CancelOrder(order.ID)
+	err := orderSvc.CancelOrder(context.Background(), order.ID)
 	if !errors.Is(err, service.ErrOrderAlreadyFinished) {
 		t.Fatalf("expected order cancel failed,got %d", err)
 	}
@@ -336,7 +337,7 @@ func TestCancelOrder_CancelledOrder_Idempotent(t *testing.T) {
 	ctx := seedPendingOrderContext(t, testDB)
 	db := testDB
 
-	if err := orderSvc.CancelOrder(ctx.Order.ID); err != nil {
+	if err := orderSvc.CancelOrder(context.Background(), ctx.Order.ID); err != nil {
 		t.Fatalf("order cancenl failed: %v", err)
 	}
 
@@ -361,7 +362,7 @@ func TestCancelOrder_CancelledOrder_Idempotent(t *testing.T) {
 		t.Fatalf("expected cancelled_at not nil after first cancel")
 	}
 
-	if err := orderSvc.CancelOrder(ctx.Order.ID); err != nil {
+	if err := orderSvc.CancelOrder(context.Background(), ctx.Order.ID); err != nil {
 		t.Fatalf("order cancenl failed: %v", err)
 	}
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
@@ -11,9 +12,9 @@ import (
 )
 
 type InventoryService interface {
-	InitInventory(req *request.InitInventoryRequest) error
-	AddInventory(req request.AddInventoryRequest) error
-	GetInventoryByProductID(productID int64) (*model.Inventory, error)
+	InitInventory(ctx context.Context, req *request.InitInventoryRequest) error
+	AddInventory(ctx context.Context, req request.AddInventoryRequest) error
+	GetInventoryByProductID(ctx context.Context, productID int64) (*model.Inventory, error)
 }
 
 type InventoryHandler struct {
@@ -35,7 +36,7 @@ func (p *InventoryHandler) InitInventory(c *gin.Context) {
 		return
 	}
 
-	if err := p.inventoryService.InitInventory(&req); err != nil {
+	if err := p.inventoryService.InitInventory(c.Request.Context(), &req); err != nil {
 		handleError(c, err, response.CodeInitInventoryFailed, "初始化库存错误")
 		return
 	}
@@ -50,7 +51,7 @@ func (p *InventoryHandler) AddInventory(c *gin.Context) {
 		return
 	}
 
-	if err := p.inventoryService.AddInventory(req); err != nil {
+	if err := p.inventoryService.AddInventory(c.Request.Context(), req); err != nil {
 		handleError(c, err, response.CodeAddInventoryError, "添加库存失败")
 		return
 	}
@@ -64,7 +65,7 @@ func (p *InventoryHandler) GetInventoryByProductID(c *gin.Context) {
 		return
 	}
 
-	inventory, err := p.inventoryService.GetInventoryByProductID(id)
+	inventory, err := p.inventoryService.GetInventoryByProductID(c.Request.Context(), id)
 	if err != nil {
 		handleError(c, err, response.CodeInventoryNotFound, "查询库存失败")
 		return

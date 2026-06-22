@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/response"
 	"go-order-inventory/internal/service"
@@ -11,7 +12,7 @@ import (
 )
 
 type StockLogService interface {
-	ListStockLogsByProductID(productID *int64) ([]*model.StockLog, error)
+	ListStockLogsByProductID(ctx context.Context, productID *int64) ([]*model.StockLog, error)
 }
 
 type StockLogHandler struct {
@@ -39,7 +40,7 @@ func (p *StockLogHandler) ListStockLogs(c *gin.Context) {
 		productID = &id
 	}
 
-	stockLogs, err := p.stockLogService.ListStockLogsByProductID(productID)
+	stockLogs, err := p.stockLogService.ListStockLogsByProductID(c.Request.Context(), productID)
 	if err != nil {
 		handleError(c, err, response.CodeQueryStockLogFailed, "库存流水日志失败")
 		return

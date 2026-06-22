@@ -48,7 +48,7 @@ func TestCreateProduct_Success(t *testing.T) {
 		Description: "desc",
 		PriceFen:    199,
 	}
-	product, err := productSvc.CreateProduct(req)
+	product, err := productSvc.CreateProduct(context.Background(), req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestCreateProduct_InvalidPrice(t *testing.T) {
 		PriceFen:    0,
 	}
 
-	product, err := productSvc.CreateProduct(req)
+	product, err := productSvc.CreateProduct(context.Background(), req)
 	if !errors.Is(err, service.ErrInvalidProductPrice) {
 		t.Fatalf("expected ErrInvalidProductPrice, got err=%v", err)
 	}
@@ -108,7 +108,7 @@ func TestCreateProduct_SuccessTrimmed(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	p, err := productSvc.CreateProduct(req)
+	p, err := productSvc.CreateProduct(context.Background(), req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestCreateProduct_EmptyName(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := productSvc.CreateProduct(req)
+	product, err := productSvc.CreateProduct(context.Background(), req)
 	if !errors.Is(err, service.ErrInvalidProductName) {
 		t.Fatalf("expected ErrInvalidProductName, got err=%v", err)
 	}
@@ -156,7 +156,7 @@ func TestCreateProduct_DescriptionTooLong(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := productSvc.CreateProduct(req)
+	product, err := productSvc.CreateProduct(context.Background(), req)
 	if !errors.Is(err, service.ErrInvalidProductDescription) {
 		t.Fatalf("expect desciption less 500 character:,got %v", err)
 	}
@@ -183,7 +183,7 @@ func TestCreateProduct_DescriptionExactly500(t *testing.T) {
 		PriceFen:    199,
 	}
 
-	product, err := productSvc.CreateProduct(req)
+	product, err := productSvc.CreateProduct(context.Background(), req)
 	if err != nil {
 		t.Fatalf("create product failed: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestListProducts_OnlyOffSale(t *testing.T) {
 	seedProduct(t, testDB, "off-sale", 100, model.ProductStatusOffSale)
 	seedProduct(t, testDB, "on-sale", 100, model.ProductStatusOnSale)
 
-	products, err := productSvc.ListProducts()
+	products, err := productSvc.ListProducts(context.Background())
 	if err != nil {
 		t.Fatalf("list products failed: %v", err)
 	}

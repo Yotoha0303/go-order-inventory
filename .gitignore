@@ -4,3 +4,6 @@ AGENTS.md
 .tmp
 tools
 docker-compose.yml
+bin/
+coverage.out
+coverage.html

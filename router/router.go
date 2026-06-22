@@ -1,19 +1,22 @@
 package router
 
 import (
-	"go-order-inventory/internal/bizcache"
 	"go-order-inventory/internal/handler"
 	"go-order-inventory/internal/middleware"
-	"go-order-inventory/internal/service"
 	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 )
 
-func SetupRouters(db *gorm.DB, logger *slog.Logger, timeout time.Duration, redisClient *redis.Client) *gin.Engine {
+type Handlers struct {
+	Product   *handler.ProductHandler
+	Inventory *handler.InventoryHandler
+	StockLog  *handler.StockLogHandler
+	Order     *handler.OrderHandler
+}
+
+func SetupRouters(logger *slog.Logger, timeout time.Duration, handlers Handlers) *gin.Engine {
 	r := gin.New()
 
 	r.Use(
@@ -22,19 +25,9 @@ func SetupRouters(db *gorm.DB, logger *slog.Logger, timeout time.Duration, redis
 		middleware.TimeoutMiddleware(timeout),
 		middleware.Recovery(logger),
 	)
-	productCache := bizcache.NewProductCache(redisClient)
-	productService := service.NewProductService(db, productCache)
-	inventoryService := service.NewInventoryService(db)
-	stockLogService := service.NewStockLogService(db)
-	orderService := service.NewOrderService(db)
-
-	productHandler := handler.NewProductHandler(productService)
-	inventoryHandler := handler.NewInventoryHandler(inventoryService)
-	stockLogHandler := handler.NewStockLogHandler(stockLogService)
-	orderHandler := handler.NewOrderHandler(orderService)
 
 	registerHealthRouters(r)
-	registerAPIRouter(r, productHandler, inventoryHandler, stockLogHandler, orderHandler)
+	registerAPIRouter(r, handlers)
 	return r
 }
 
@@ -53,18 +46,14 @@ func registerHealthRouters(r *gin.Engine) {
 }
 
 func registerAPIRouter(
-	rg *gin.Engine,
-	productHandler *handler.ProductHandler,
-	inventoryHandler *handler.InventoryHandler,
-	stockLogHandler *handler.StockLogHandler,
-	orderHandler *handler.OrderHandler,
+	rg *gin.Engine, handlers Handlers,
 ) {
 	apiV1 := rg.Group("/api/v1")
 
-	registerProductAPIRouter(apiV1, productHandler)
-	registerInventoryAPIRouter(apiV1, inventoryHandler)
-	registerStockLogAPIRouter(apiV1, stockLogHandler)
-	registerOrderAPIRouter(apiV1, orderHandler)
+	registerProductAPIRouter(apiV1, handlers.Product)
+	registerInventoryAPIRouter(apiV1, handlers.Inventory)
+	registerStockLogAPIRouter(apiV1, handlers.StockLog)
+	registerOrderAPIRouter(apiV1, handlers.Order)
 }
 
 func registerProductAPIRouter(rg *gin.RouterGroup, productHandler *handler.ProductHandler) {

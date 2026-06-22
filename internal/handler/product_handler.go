@@ -13,8 +13,8 @@ import (
 )
 
 type ProductService interface {
-	CreateProduct(req request.CreateProductRequest) (*model.Product, error)
-	ListProducts() ([]*model.Product, error)
+	CreateProduct(ctx context.Context, req request.CreateProductRequest) (*model.Product, error)
+	ListProducts(ctx context.Context) ([]*model.Product, error)
 	GetProductByID(ctx context.Context, id int64) (*model.Product, error)
 	OnSaleProduct(ctx context.Context, id int64) error
 	OffSaleProduct(ctx context.Context, id int64) error
@@ -39,7 +39,7 @@ func (p *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := p.productService.CreateProduct(req)
+	product, err := p.productService.CreateProduct(c.Request.Context(), req)
 
 	if err != nil {
 		handleError(c, err, response.CodeCreateProductFailed, "创建商品失败")
@@ -51,7 +51,7 @@ func (p *ProductHandler) CreateProduct(c *gin.Context) {
 
 func (p *ProductHandler) ListProducts(c *gin.Context) {
 
-	products, err := p.productService.ListProducts()
+	products, err := p.productService.ListProducts(c.Request.Context())
 
 	if err != nil {
 		handleError(c, err, response.CodeQueryProductListFailed, "查询商品列表失败")

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/response"
@@ -11,12 +12,12 @@ import (
 )
 
 type OrderService interface {
-	CreateOrder(req request.CreateOrderRequest) (*model.Order, error)
-	ListOrders() ([]*model.Order, error)
-	GetOrderByID(id int64) (*model.Order, []*model.OrderItem, error)
-	PayOrder(orderID int64) error
-	FinishOrder(orderID int64) error
-	CancelOrder(orderID int64) error
+	CreateOrder(ctx context.Context, req request.CreateOrderRequest) (*model.Order, error)
+	ListOrders(ctx context.Context) ([]*model.Order, error)
+	GetOrderByID(ctx context.Context, id int64) (*model.Order, []*model.OrderItem, error)
+	PayOrder(ctx context.Context, orderID int64) error
+	FinishOrder(ctx context.Context, orderID int64) error
+	CancelOrder(ctx context.Context, orderID int64) error
 }
 
 type OrderHandler struct {
@@ -38,7 +39,7 @@ func (p *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := p.orderService.CreateOrder(req)
+	order, err := p.orderService.CreateOrder(c.Request.Context(), req)
 	if err != nil {
 		handleError(c, err, response.CodeCreateOrderFailed, "订单创建失败")
 		return
@@ -48,7 +49,7 @@ func (p *OrderHandler) CreateOrder(c *gin.Context) {
 }
 
 func (p *OrderHandler) ListOrders(c *gin.Context) {
-	orders, err := p.orderService.ListOrders()
+	orders, err := p.orderService.ListOrders(c.Request.Context())
 	if err != nil {
 		handleError(c, err, response.CodeQueryOrderListFailed, "查询订单列表失败")
 		return
@@ -63,7 +64,7 @@ func (p *OrderHandler) GetOrderByID(c *gin.Context) {
 		return
 	}
 
-	order, orderItems, err := p.orderService.GetOrderByID(id)
+	order, orderItems, err := p.orderService.GetOrderByID(c.Request.Context(), id)
 	if err != nil {
 		handleError(c, err, response.CodeQueryOrderDetailFailed, "查询订单详情失败")
 		return
@@ -83,7 +84,7 @@ func (p *OrderHandler) PayOrder(c *gin.Context) {
 		return
 	}
 
-	if err := p.orderService.PayOrder(orderID); err != nil {
+	if err := p.orderService.PayOrder(c.Request.Context(), orderID); err != nil {
 		handleError(c, err, response.CodeOrderPayFailed, "支付订单失败")
 		return
 	}
@@ -97,7 +98,7 @@ func (p *OrderHandler) FinishOrder(c *gin.Context) {
 		return
 	}
 
-	if err := p.orderService.FinishOrder(orderID); err != nil {
+	if err := p.orderService.FinishOrder(c.Request.Context(), orderID); err != nil {
 		handleError(c, err, response.CodeOrderFinishFailed, "完成订单失败")
 		return
 	}
@@ -111,7 +112,7 @@ func (p *OrderHandler) CancelOrders(c *gin.Context) {
 		return
 	}
 
-	if err := p.orderService.CancelOrder(orderID); err != nil {
+	if err := p.orderService.CancelOrder(c.Request.Context(), orderID); err != nil {
 		handleError(c, err, response.CodeOrderCancelFailed, "取消订单失败")
 		return
 	}

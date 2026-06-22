@@ -1,29 +1,30 @@
 package dao
 
 import (
+	"context"
 	"go-order-inventory/internal/model"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-func InitInventory(db *gorm.DB, inventory *model.Inventory) error {
-	return db.Create(inventory).Error
+func InitInventory(ctx context.Context, db *gorm.DB, inventory *model.Inventory) error {
+	return db.WithContext(ctx).Create(inventory).Error
 }
 
-func GetInventoryByProductID(db *gorm.DB, productID int64) (*model.Inventory, error) {
+func GetInventoryByProductID(ctx context.Context, db *gorm.DB, productID int64) (*model.Inventory, error) {
 	var inventory model.Inventory
-	return &inventory, db.Where("product_id = ?", productID).First(&inventory).Error
+	return &inventory, db.WithContext(ctx).Where("product_id = ?", productID).First(&inventory).Error
 }
 
-func GetInventoryByProductIDForUpdate(db *gorm.DB, productID int64) (*model.Inventory, error) {
+func GetInventoryByProductIDForUpdate(ctx context.Context, db *gorm.DB, productID int64) (*model.Inventory, error) {
 	var inventory model.Inventory
-	return &inventory, db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("product_id = ?", productID).First(&inventory).Error
+	return &inventory, db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where("product_id = ?", productID).First(&inventory).Error
 }
 
-func UpdateInventoryStockQuantity(db *gorm.DB, productID int64, stockQuantity int64) error {
+func UpdateInventoryStockQuantity(ctx context.Context, db *gorm.DB, productID int64, stockQuantity int64) error {
 
-	result := db.Model(&model.Inventory{}).Where("product_id = ?", productID).Update("stock_quantity", stockQuantity)
+	result := db.WithContext(ctx).Model(&model.Inventory{}).Where("product_id = ?", productID).Update("stock_quantity", stockQuantity)
 
 	if result.Error != nil {
 		return result.Error
@@ -36,9 +37,9 @@ func UpdateInventoryStockQuantity(db *gorm.DB, productID int64, stockQuantity in
 	return nil
 }
 
-func DeductInventory(db *gorm.DB, productID int64, quantity int64) (int64, error) {
+func DeductInventory(ctx context.Context, db *gorm.DB, productID int64, quantity int64) (int64, error) {
 
-	result := db.Model(&model.Inventory{}).Where("product_id = ? AND stock_quantity >= ?", productID, quantity).
+	result := db.WithContext(ctx).Model(&model.Inventory{}).Where("product_id = ? AND stock_quantity >= ?", productID, quantity).
 		UpdateColumn("stock_quantity", gorm.Expr("stock_quantity - ?", quantity))
 
 	return result.RowsAffected, result.Error

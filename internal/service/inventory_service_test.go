@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"errors"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
@@ -19,7 +20,7 @@ func newInventoryService(t *testing.T) (*gorm.DB, *service.InventoryService) {
 func TestInitInventory_ProductNotFound(t *testing.T) {
 	_, inventorySvc := newInventoryService(t)
 	qty := int64(10)
-	err := inventorySvc.InitInventory(&request.InitInventoryRequest{
+	err := inventorySvc.InitInventory(context.Background(), &request.InitInventoryRequest{
 		ProductID:     99999,
 		StockQuantity: &qty,
 	})
@@ -33,7 +34,7 @@ func TestInitInventory_Success(t *testing.T) {
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
 	qty := int64(20)
 
-	err := inventorySvc.InitInventory(&request.InitInventoryRequest{
+	err := inventorySvc.InitInventory(context.Background(), &request.InitInventoryRequest{
 		ProductID:     p.ID,
 		StockQuantity: &qty,
 	})
@@ -52,7 +53,7 @@ func TestInitInventory_Success(t *testing.T) {
 
 func TestAddInventory_InvalidQuantity(t *testing.T) {
 	_, inventorySvc := newInventoryService(t)
-	err := inventorySvc.AddInventory(request.AddInventoryRequest{
+	err := inventorySvc.AddInventory(context.Background(), request.AddInventoryRequest{
 		ProductID: 1,
 		Quantity:  0,
 	})
@@ -66,7 +67,7 @@ func TestAddInventory_Success(t *testing.T) {
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
 	seedInventory(t, testDB, p.ID, 10)
 
-	err := inventorySvc.AddInventory(request.AddInventoryRequest{
+	err := inventorySvc.AddInventory(context.Background(), request.AddInventoryRequest{
 		ProductID: p.ID,
 		Quantity:  5,
 	})
@@ -88,7 +89,7 @@ func TestInitInventory_CreateStockLog(t *testing.T) {
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
 	qty := int64(20)
 
-	err := inventorySvc.InitInventory(&request.InitInventoryRequest{
+	err := inventorySvc.InitInventory(context.Background(), &request.InitInventoryRequest{
 		ProductID:     p.ID,
 		StockQuantity: &qty,
 	})
