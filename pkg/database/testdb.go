@@ -40,7 +40,8 @@ var openTestMySQL = func(cfg *config.Config, dsn string) (*gorm.DB, error) {
 }
 
 func buildTestDSN(cfg *config.Config, dbPassword string) (string, error) {
-	if cfg.MySQL.User == "" || dbPassword == "" || cfg.MySQL.Host == "" || cfg.MySQL.Port == "" || cfg.MySQL.Database == "" {
+	dbTestDatabse := os.Getenv("MYSQL_TEST_DATABASE")
+	if cfg.MySQL.User == "" || dbPassword == "" || cfg.MySQL.Host == "" || cfg.MySQL.Port == "" || dbTestDatabse == "" {
 		return "", fmt.Errorf("database config missing")
 	}
 
@@ -49,12 +50,12 @@ func buildTestDSN(cfg *config.Config, dbPassword string) (string, error) {
 		dbPassword,
 		cfg.MySQL.Host,
 		cfg.MySQL.Port,
-		cfg.MySQL.Database,
+		dbTestDatabse,
 	), nil
 }
 
 func InitTestDB(cfg *config.Config) (*gorm.DB, error) {
-	dsn, err := buildTestDSN(cfg, os.Getenv("MYSQL_PASSWORD"))
+	dsn, err := buildTestDSN(cfg, os.Getenv("MYSQL_TEST_PASSWORD"))
 	if err != nil {
 		return nil, err
 	}
