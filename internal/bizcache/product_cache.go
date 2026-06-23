@@ -3,6 +3,7 @@ package bizcache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go-order-inventory/internal/model"
 	"log"
@@ -38,7 +39,7 @@ func (p *ProductCache) GetProductDetail(ctx context.Context, productID int64) (*
 	val, err := p.redisClient.Get(ctx, ProductDetailCacheKey(productID)).Result()
 	if err != nil {
 
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			return nil, false
 		}
 

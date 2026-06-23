@@ -5,9 +5,16 @@ BIN_DIR := bin
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
 COMPOSE ?= docker compose
+GOOSE ?= goose
 PACKAGES := ./...
 TEST_FLAGS ?=
 LINT_FLAGS ?=
+MIGRATIONS_DIR ?= migrations
+DB_HOST ?= 127.0.0.1
+DB_PORT ?= 3306
+DB_USER ?= root
+DB_NAME ?= go_order_inventory
+MIGRATION_DSN ?= $(DB_USER):$(MYSQL_PASSWORD)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)?parseTime=true
 
 ifeq ($(OS),Windows_NT)
 BINARY := $(BIN_DIR)/$(APP_NAME).exe
@@ -18,7 +25,11 @@ endif
 .PHONY: help run dev build clean \
 	fmt vet lint tidy mod-download mod-verify \
 	test test-verbose test-service test-redis test-all test-race coverage coverage-html \
-	check compose-config infra-up infra-down infra-ps infra-logs
+	check compose-config infra-up infra-down infra-ps infra-logs \
+	docker-build docker-up docker-down docker-restart docker-ps docker-logs \
+	check-goose check-migration-env migrate-validate migrate-status migrate-up \
+	migrate-up-one migrate-up-to migrate-down migrate-down-to migrate-redo \
+	migrate-version migrate-create
 
 help:
 	@echo Usage: make target
@@ -50,6 +61,24 @@ help:
 	@echo   infra-down      Stop and remove infrastructure containers
 	@echo   infra-ps        Show infrastructure container status
 	@echo   infra-logs      Follow MySQL and Redis logs
+	@echo Docker:
+	@echo   docker-build    Build the application image
+	@echo   docker-up       Build and start the complete stack
+	@echo   docker-down     Stop and remove the complete stack
+	@echo   docker-restart  Restart all services
+	@echo   docker-ps       Show all service status
+	@echo   docker-logs     Follow all service logs
+	@echo Migrations:
+	@echo   migrate-validate       Validate migration files without a database
+	@echo   migrate-status         Show migration status
+	@echo   migrate-up             Apply all pending migrations
+	@echo   migrate-up-one         Apply the next migration
+	@echo   migrate-up-to          Migrate up to VERSION, e.g. make migrate-up-to VERSION=5
+	@echo   migrate-down           Roll back the latest migration
+	@echo   migrate-down-to        Roll back to VERSION, e.g. make migrate-down-to VERSION=3
+	@echo   migrate-redo           Roll back and re-apply the latest migration
+	@echo   migrate-version        Show the current database version
+	@echo   migrate-create         Create a SQL migration, e.g. make migrate-create NAME=add_sku
 
 run:
 	$(GO) run ./cmd
@@ -137,4 +166,77 @@ infra-ps:
 infra-logs:
 	$(COMPOSE) logs --follow mysql redis
 
+docker-build: compose-config
+	$(COMPOSE) build app
+
+docker-up: compose-config
+	$(COMPOSE) up -d --build --wait
+
+docker-down:
+	$(COMPOSE) down --remove-orphans
+
+docker-restart: compose-config
+	$(COMPOSE) restart
+
+docker-ps:
+	$(COMPOSE) ps
+
+docker-logs:
+	$(COMPOSE) logs --follow
+
+check-goose:
+ifeq ($(OS),Windows_NT)
+	@where "$(GOOSE)" >NUL 2>&1 || (echo goose is not installed. Run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1 & exit /B 1)
+else
+	@command -v "$(GOOSE)" >/dev/null 2>&1 || { echo "goose is not installed. Run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1"; exit 1; }
+endif
+
+check-migration-env:
+ifeq ($(strip $(MYSQL_PASSWORD)),)
+	@echo MYSQL_PASSWORD is required. Set it in the environment or pass MYSQL_PASSWORD=... to make. && exit 1
+else
+	@echo Migration database: $(DB_USER)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)
+endif
+
+migrate-validate: check-goose
+	$(GOOSE) -dir "$(MIGRATIONS_DIR)" validate
+
+migrate-status: check-goose check-migration-env
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" status
+
+migrate-up: check-goose check-migration-env
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" up
+
+migrate-up-one: check-goose check-migration-env
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" up-by-one
+
+migrate-up-to: check-goose check-migration-env
+ifeq ($(strip $(VERSION)),)
+	@echo VERSION is required. Example: make migrate-up-to VERSION=5 && exit 1
+else
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" up-to "$(VERSION)"
+endif
+
+migrate-down: check-goose check-migration-env
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" down
+
+migrate-down-to: check-goose check-migration-env
+ifeq ($(strip $(VERSION)),)
+	@echo VERSION is required. Example: make migrate-down-to VERSION=3 && exit 1
+else
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" down-to "$(VERSION)"
+endif
+
+migrate-redo: check-goose check-migration-env
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" redo
+
+migrate-version: check-goose check-migration-env
+	@$(GOOSE) -dir "$(MIGRATIONS_DIR)" mysql "$(MIGRATION_DSN)" version
+
+migrate-create: check-goose
+ifeq ($(strip $(NAME)),)
+	@echo NAME is required. Example: make migrate-create NAME=add_product_sku && exit 1
+else
+	$(GOOSE) -dir "$(MIGRATIONS_DIR)" -s create "$(NAME)" sql
+endif
 

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -68,9 +69,49 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config file %s failed: %w", path, err)
 	}
 
+	if err := applyEnvOverrides(&cfg); err != nil {
+		return nil, err
+	}
+
 	if err = cfg.Validate(); err != nil {
 		return nil, err
 	}
 
 	return &cfg, nil
+}
+
+func applyEnvOverrides(cfg *Config) error {
+	if v := os.Getenv("APP_PORT"); v != "" {
+		port, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("invalid APP_PORT: %w", err)
+		}
+		cfg.Server.Port = port
+	}
+
+	if v := os.Getenv("DB_HOST"); v != "" {
+		cfg.MySQL.Host = v
+	}
+	if v := os.Getenv("DB_PORT"); v != "" {
+		cfg.MySQL.Port = v
+	}
+	if v := os.Getenv("DB_USER"); v != "" {
+		cfg.MySQL.User = v
+	}
+	if v := os.Getenv("DB_NAME"); v != "" {
+		cfg.MySQL.Database = v
+	}
+
+	if v := os.Getenv("REDIS_ADDR"); v != "" {
+		cfg.Redis.Addr = v
+	}
+	if v := os.Getenv("REDIS_DB"); v != "" {
+		db, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("invalid REDIS_DB: %w", err)
+		}
+		cfg.Redis.DB = db
+	}
+
+	return nil
 }

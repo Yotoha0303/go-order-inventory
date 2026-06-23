@@ -15,15 +15,27 @@
 - 使用订单状态机限制非法状态流转
 - 通过文档和测试清单支撑项目复盘
 
+### 工程化能力
+
+- HTTP Server 设置 ReadTimeout、WriteTimeout、IdleTimeout、ReadHeaderTimeout 和 MaxHeaderBytes
+- MySQL 初始化时配置连接池：MaxOpenConns、MaxIdleConns、ConnMaxLifetime、ConnMaxIdleTime
+- 启动时使用 PingContext 检查 MySQL 连通性
+- 路由层使用 Request ID、Access Log、Timeout Middleware 和 Recovery
+- Redis 不可用时商品详情缓存自动降级，不影响主流程
+- CI 覆盖 go test、go test -race、go vet、golangci-lint、goose validate 和 go build
+- Dockerfile 使用多阶段构建和非 root 用户运行应用
+- Docker Compose 编排应用、MySQL 和 Redis，并通过健康检查控制依赖启动顺序
+- Goose 管理数据库版本，Makefile 统一封装开发、测试、Docker 和迁移命令
+
 ## 2. 技术栈
 
-- Go
-- Gin
-- GORM
-- MySQL
-- Redis
-- godotenv
-- YAML 配置
+- Go 1.25.5
+- Gin + GORM
+- MySQL 8.4 + Redis 7.2
+- Goose 数据库迁移
+- YAML + godotenv 配置
+- Docker + Docker Compose
+- golangci-lint + GitHub Actions
 
 ## 3. 当前实现进度
 
@@ -44,8 +56,8 @@
 未实现，作为后续演进：
 
 - 创建订单 request_id / idempotency_key 幂等控制
-- 更完整的 service 层自动化测试
-- 本地启动脚本优化（依赖就绪检测与一键初始化）
+- handler / DAO 层测试与更完整的异常分支覆盖
+- 自动迁移或独立 migration job，进一步简化首次启动流程
 
 ## 4. 核心功能
 
@@ -82,25 +94,27 @@
 ## 5. 项目结构
 
 ```text
-cmd/                  项目启动入口
-config/               配置加载
-docs/                 项目文档、接口测试文件、SQL 脚本
-docs/http/            REST Client 手动接口测试文件
-docs/sql/             初始化和测试 SQL
-docs/evidence/        测试与运行截图证据
-global/               全局资源，如 DB
-internal/apperror/    业务错误定义与错误码映射
-internal/bizcache/    数据缓存
-internal/dao/         数据库访问层
-internal/handler/     HTTP 接口层
-internal/model/       GORM 数据模型
-internal/request/     请求参数结构
-internal/response/    响应结构
-internal/service/     业务逻辑层
-pkg/database/         MySQL 初始化
-pkg/redis/            Redis 初始化
-router/               路由注册
-docker-compose.yml.example 本地依赖服务编排示例
+.github/workflows/ci.yml  持续集成配置
+cmd/                      项目启动入口
+config/                   YAML 加载、环境变量覆盖和配置校验
+docs/                     设计文档、REST Client 请求和验证证据
+internal/apperror/        业务错误定义与错误码映射
+internal/app/             依赖装配、HTTP Server 和优雅退出
+internal/bizcache/        Redis 业务缓存
+internal/dao/             数据库访问层
+internal/handler/         HTTP 接口层
+internal/middleware/      请求 ID、日志、超时和恢复中间件
+internal/model/           GORM 数据模型
+internal/request/         请求参数和校验规则
+internal/response/        统一响应结构
+internal/service/         业务规则、状态机和事务
+migrations/               Goose SQL 迁移
+pkg/database/             MySQL 初始化与连接池
+pkg/redis/                Redis 客户端初始化
+router/                   路由注册
+compose.yml               应用、MySQL、Redis 编排
+Dockerfile                应用镜像多阶段构建
+Makefile                  开发、测试、Docker 和迁移命令入口
 ```
 
 ## 6. 分层说明
@@ -282,113 +296,104 @@ product:detail:{product_id}
 
 接口说明详见：[docs/api_list.md](docs/api_list.md)
 
-## 14. 环境变量
+## 14. 配置与环境变量
 
-项目通过 `.env` 读取数据库配置：
+应用启动时先加载 `.env`，再读取 [config.yml](config.yml)。环境变量会覆盖 YAML 中适合按环境变化的连接配置。
+
+### 14.1 基础环境变量
 
 ```env
-# runtime
 MYSQL_PASSWORD=your-password
 REDIS_PASSWORD=
-# test
-MYSQL_TEST_PASSWORD=your-password
-MYSQL_TEST_DATABASE=go_order_inventory_test
 ```
 
-服务端口配置在 `config.yml`：
+- `MYSQL_PASSWORD`：必填，应用、Docker Compose 和 Goose 共用。
+- `REDIS_PASSWORD`：可选；当前 Compose 中的 Redis 未启用密码认证，保持为空即可。
+- 不要提交真实的 `.env`，可从 [.env.example](.env.example) 复制后修改。
 
-```yaml
-server:
-  port: 8082
+### 14.2 YAML 配置覆盖
 
-mysql:
-  user: root
-  host: 127.0.0.1
-  port: "3306"
-  database: go_order_inventory
+| 环境变量 | 覆盖的配置 |
+| --- | --- |
+| `APP_PORT` | `server.port` |
+| `DB_HOST` | `mysql.host` |
+| `DB_PORT` | `mysql.port` |
+| `DB_USER` | `mysql.user` |
+| `DB_NAME` | `mysql.database` |
+| `REDIS_ADDR` | `redis.addr` |
+| `REDIS_DB` | `redis.db` |
 
-redis:
-  addr: 127.0.0.1:6379
-  db: 0
-
-```
-
-项目可通过 Docker 进行部署， `docker-compose.yml` ：
-
-```
-services:
-  mysql:
-    image: mysql:${MYSQL_IMAGE_VERSION:-8.4.8}
-    container_name: go-order-inventory-mysql
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-your-password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_order_inventory}
-      TZ: Asia/Shanghai
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_general_ci
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docs/sql/sql_table_data_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  redis:
-    image: redis:${REDIS_IMAGE_VERSION:-7.2-alpine}
-    container_name: go-order-inventory-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-volumes:
-  mysql_data:
-  redis_data:
-
-```
+本地运行默认连接 `127.0.0.1:3306` 和 `127.0.0.1:6379`。Compose 会为应用容器设置 `mysql:3306` 和 `redis:6379`，无需修改 `config.yml`。
 
 ## 15. 启动方式
 
-安装依赖：
+### 15.1 前置依赖
+
+- Go 1.25.5
+- GNU Make
+- Docker 与 Docker Compose
+- Goose v3.27.1
 
 ```bash
-go mod tidy
+go mod download
+go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
 ```
 
-启动服务：
+### 15.2 本地运行应用
 
-```bash
-go run cmd/main.go
+PowerShell 示例：
+
+```powershell
+Copy-Item .env.example .env
+$env:MYSQL_PASSWORD = "your-password"
+
+make infra-up
+make migrate-up
+make run
 ```
 
-Docker 启动：
+首次启动必须执行 `make migrate-up` 建表。之后可用 `make dev` 启动 MySQL、Redis 并运行应用。
 
-本项目依赖 MySQL 和 Redis 的依赖，需要安装依赖后才能启动项目
+### 15.3 Docker 运行完整服务
 
-```bash
-docker compose up -d
+```powershell
+$env:MYSQL_PASSWORD = "your-password"
+
+make infra-up
+make migrate-up
+make docker-up
 ```
 
-默认访问地址：
+迁移由宿主机上的 Goose 执行，默认连接 Compose 暴露的 `127.0.0.1:3306`。当前 `docker-up` 不会自动执行数据库迁移。
 
-```text
-http://localhost:8082
-```
+常用 Docker 命令：
 
-健康检查：
+| 命令 | 作用 |
+| --- | --- |
+| `make compose-config` | 校验 Compose 配置 |
+| `make infra-up` | 仅启动 MySQL 和 Redis，并等待健康 |
+| `make infra-down` | 停止 Compose 项目 |
+| `make docker-build` | 构建应用镜像 |
+| `make docker-up` | 构建并启动应用、MySQL、Redis |
+| `make docker-down` | 停止并移除容器，保留数据卷 |
+| `make docker-ps` | 查看服务状态 |
+| `make docker-logs` | 持续查看全部服务日志 |
+
+常用迁移命令：
+
+| 命令 | 作用 |
+| --- | --- |
+| `make migrate-validate` | 静态校验迁移文件 |
+| `make migrate-status` | 查看数据库迁移状态 |
+| `make migrate-up` | 执行全部待处理迁移 |
+| `make migrate-up-one` | 只执行下一条迁移 |
+| `make migrate-up-to VERSION=5` | 迁移到指定版本 |
+| `make migrate-down` | 回滚最近一条迁移 |
+| `make migrate-down-to VERSION=3` | 回滚到指定版本 |
+| `make migrate-redo` | 重做最近一条迁移 |
+| `make migrate-create NAME=add_sku` | 创建顺序编号的 SQL 迁移 |
+
+默认访问地址为 `http://localhost:8082`，健康检查为：
 
 ```bash
 curl http://localhost:8082/ping
@@ -396,30 +401,34 @@ curl http://localhost:8082/ping
 
 ## 16. 测试方式
 
-运行 Go 测试：
+service 测试会清理所连接数据库中的业务表。必须使用独立测试库，禁止将 `DB_NAME` 指向含有开发数据或生产数据的数据库。
 
-```bash
-go test -v ./...
+假设已创建 `go_order_inventory_test`：
+
+```powershell
+$env:MYSQL_PASSWORD = "your-password"
+$env:DB_NAME = "go_order_inventory_test"
+
+make migrate-up
+make test
 ```
 
-Redis 集成测试：
+常用测试和质量命令：
 
-```bash
-RUN_REDIS_TEST=1 go test -v ./internal/bizcache
-```
+| 命令 | 作用 |
+| --- | --- |
+| `make test` | 运行全部 Go 测试 |
+| `make test-service` | 运行 service 测试 |
+| `make test-redis` | 运行 Redis 集成测试 |
+| `make test-all` | 运行普通测试和 Redis 集成测试 |
+| `make test-race` | 使用 race detector 运行测试 |
+| `make coverage` | 生成 `coverage.out` |
+| `make coverage-html` | 生成 `coverage.html` |
+| `make check` | 执行格式化、模块校验、vet 和测试 |
 
-手动接口测试：
+Redis 集成测试前需保证 Redis 已启动，可先执行 `make infra-up`。
 
-```text
-docs/http/products.http
-docs/http/inventory.http
-docs/http/stock_logs.http
-docs/http/orders.http
-docs/http/redis.http
-docs/http/demo_flow.http
-```
-
-测试计划见：[docs/test_plan.md](docs/test_plan.md)
+手动接口测试文件位于 [docs/http](docs/http)，完整业务链路见 [docs/http/demo_flow.http](docs/http/demo_flow.http)。测试计划见 [docs/test_plan.md](docs/test_plan.md)。
 
 ## 17. 项目文档
 
@@ -458,11 +467,16 @@ docs/http/demo_flow.http
 - 商品详情使用 Redis cache-aside 缓存，商品上下架时删除缓存
 - Redis 异常时降级走 MySQL，不影响主业务流程
 - 使用 AppError 统一业务错误、HTTP 状态码和业务 code，减少 handler 层重复错误判断
+- 配置支持 YAML 默认值、环境变量覆盖和启动参数校验
+- HTTP Server 配置超时、请求 ID、访问日志、panic 恢复和优雅退出
+- Docker 使用多阶段构建、非 root 用户、健康检查和 Compose 依赖编排
+- Goose 管理数据库版本，CI 自动执行 lint、test、race、vet、build 和迁移校验
 
 ## 19. 后续演进方向
 
-- service 层增加更多的测试内容
-- 优化 Docker Compose 与本地启动脚本，统一依赖启动与初始化流程
+- 增加 handler / DAO 测试，并完善 service 异常与并发分支覆盖
+- 在 Compose 或部署流水线中加入独立 migration job
+- 增加指标、链路追踪和结构化日志字段规范
 - 优化错误码文档和接口返回示例
 - 订单中使用雪花 ID 代替时间戳生成 orderNO
 - 创建订单时可引入 client_order_no / idempotency_key，避免重复下单
