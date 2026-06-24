@@ -29,7 +29,7 @@ endif
 	docker-build docker-up docker-down docker-restart docker-ps docker-logs \
 	check-goose check-migration-env migrate-validate migrate-status migrate-up \
 	migrate-up-one migrate-up-to migrate-down migrate-down-to migrate-redo \
-	migrate-version migrate-create
+	migrate-version migrate-create ci
 
 help:
 	@echo Usage: make target
@@ -240,3 +240,10 @@ else
 	$(GOOSE) -dir "$(MIGRATIONS_DIR)" -s create "$(NAME)" sql
 endif
 
+ci:
+	$(MAKE) test
+	$(MAKE) vet
+	$(MAKE) test-race
+	$(MAKE) test-redis
+	$(MAKE) lint
+	$(MAKE) migrate-validate

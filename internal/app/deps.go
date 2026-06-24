@@ -54,6 +54,7 @@ func InitDeps(logger *slog.Logger) (*Deps, error) {
 		Inventory: handler.NewInventoryHandler(inventoryService),
 		StockLog:  handler.NewStockLogHandler(stockLogService),
 		Order:     handler.NewOrderHandler(orderService),
+		Health:    handler.NewHealthHandler(db),
 	}
 
 	r := router.SetupRouters(logger, cfg.HttpServer.Server.Timeout, handlers)

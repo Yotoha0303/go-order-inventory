@@ -14,6 +14,7 @@ type Handlers struct {
 	Inventory *handler.InventoryHandler
 	StockLog  *handler.StockLogHandler
 	Order     *handler.OrderHandler
+	Health    *handler.HealthHandler
 }
 
 func SetupRouters(logger *slog.Logger, timeout time.Duration, handlers Handlers) *gin.Engine {
@@ -26,23 +27,17 @@ func SetupRouters(logger *slog.Logger, timeout time.Duration, handlers Handlers)
 		middleware.Recovery(logger),
 	)
 
-	registerHealthRouters(r)
+	registerHealthRouters(r, handlers)
 	registerAPIRouter(r, handlers)
 	return r
 }
 
-func registerHealthRouters(r *gin.Engine) {
+func registerHealthRouters(r *gin.Engine, handlers Handlers) {
+	healthHandler := handlers.Health
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"code": 0,
-			"msg":  "success",
-			"data": gin.H{
-				"message": "success",
-			},
-		})
-	})
-
+	r.GET("/ping", healthHandler.PingHandler)
+	r.GET("/live", healthHandler.LiveHandler)
+	r.GET("/readyz", healthHandler.ReadyzHandler)
 }
 
 func registerAPIRouter(

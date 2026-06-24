@@ -3,14 +3,15 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
-	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+const orderNoPrefix = "ORD"
 
 func (p *OrderService) CreateOrder(ctx context.Context, req request.CreateOrderRequest) (*model.Order, error) {
 	var createOrder *model.Order
@@ -114,7 +115,7 @@ func (p *OrderService) CreateOrder(ctx context.Context, req request.CreateOrderR
 }
 
 func generateOrderNo() string {
-	return fmt.Sprintf("ORD%d", time.Now().UnixNano())
+	return orderNoPrefix + uuid.NewString()
 }
 
 func (p *OrderService) GetOrderByID(ctx context.Context, id int64) (*model.Order, []*model.OrderItem, error) {

@@ -45,4 +45,5 @@ const (
 
 const (
 	CodeInternalServerError = 5000
+	CodeReadinessFailed     = 5001
 )

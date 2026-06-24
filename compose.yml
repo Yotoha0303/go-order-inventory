@@ -11,7 +11,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: root
-      DB_NAME: go_order_inventory
+      DB_NAME: ${DB_NAME:-go_order_inventory}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
       REDIS_ADDR: redis:6379
     depends_on:
@@ -19,6 +19,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8082/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   mysql:
@@ -28,7 +36,7 @@ services:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
-      MYSQL_DATABASE: go_order_inventory
+      MYSQL_DATABASE: ${DB_NAME:-go_order_inventory}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -52,6 +60,28 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
+
+  migrate:
+    image: golang:1.25.5-alpine
+    working_dir: /app
+    volumes:
+      - ./migrations:/app/migrations:ro
+    environment:
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_NAME: ${DB_NAME:-go_order_inventory}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command:
+      - sh
+      - -ec
+      - |
+        go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
+        /go/bin/goose -dir ./migrations mysql "$${DB_USER}:$${MYSQL_PASSWORD}@tcp($${DB_HOST}:$${DB_PORT})/$${DB_NAME}?parseTime=true" up
+    restart: "no"
 
 volumes:
   mysql_data:

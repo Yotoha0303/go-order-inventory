@@ -1,59 +1,70 @@
 name: CI
 
 on:
-    push:
-        branches: ["main"]
-    pull_request:
-        branches: ["main"]
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
 permissions:
-    contents: read
+  contents: read
 
 concurrency:
-    group: ci-${{ github.ref }}
-    cancel-in-progress: true
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-    GOFLAGS: -mod=readonly
+  GOFLAGS: -mod=readonly
+  RUN_MYSQL_TEST: "1"
+  RUN_REDIS_TEST: "1"
+  MYSQL_PASSWORD: ci-password
+  DB_NAME: go_order_inventory_test
+  REDIS_ADDR: 127.0.0.1:6379
 
 jobs:
-    quality:
-        name: Test, Vet, Validate
-        runs-on: ubuntu-latest
+  quality:
+    name: Test, Vet, Validate, Build
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Setup Go
-              uses: actions/setup-go@v5
-              with:
-                  go-version-file: go.mod
-                  cache: true
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
 
-            - name: Download dependencies
-              run: go mod download
+      - name: Download dependencies
+        run: go mod download
 
-            - name: Install golangci-lint
-              run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
-            - name: Run golangci-lint
-              run: golangci-lint run ./...
+      - name: Run golangci-lint
+        run: golangci-lint run ./...
 
-            - name: Run test
-              run: go test ./...
+      - name: Run test
+        run: go test ./...
 
-            - name: Run race tests
-              run: go test -race ./...
+      - name: Run race tests
+        run: go test -race ./...
 
-            - name: Run vet
-              run: go vet ./...
+      - name: Run vet
+        run: go vet ./...
 
-            - name: Build
-              run: go build ./...
+      - name: Build
+        run: go build ./...
 
-            - name: Install goose
-              run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
 
-            - name: Validate migrations
-              run: goose -dir migrations validate
+      - name: Validate migrations
+        run: goose -dir migrations validate
+
+      - name: Build binary
+        run: go build -o bin/go-order-inventory ./cmd
+
+      - name: Build Docker image
+        run: docker build -t go-order-inventory:ci .

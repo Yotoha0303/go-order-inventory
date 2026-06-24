@@ -43,3 +43,7 @@ func PatchOrderStatus(ctx context.Context, db *gorm.DB, orderID int64, fromStatu
 func PatchOrderTotalPriceFen(ctx context.Context, db *gorm.DB, orderID int64, totalPriceFen int64) error {
 	return db.WithContext(ctx).Model(&model.Order{}).Where("id = ?", orderID).Update("total_amount_fen", totalPriceFen).Error
 }
+
+func ValidateOrderNo(ctx context.Context, db *gorm.DB, orderNo string) error {
+	return db.WithContext(ctx).Model(&model.Order{}).Where("orderNo = ?", orderNo).Find(&model.Order{}).Error
+}

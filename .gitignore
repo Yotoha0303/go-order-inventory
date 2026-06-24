@@ -4,5 +4,5 @@ AGENTS.md
 .tmp
 tools
 bin/
-coverage.out
-coverage.html
+coverage.*
+docs/evidence
