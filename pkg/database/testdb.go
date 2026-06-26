@@ -39,9 +39,9 @@ var openTestMySQL = func(cfg *config.Config, dsn string) (*gorm.DB, error) {
 	return gormDB, nil
 }
 
-func buildTestDSN(cfg *config.Config, dbPassword string) (string, error) {
-	dbTestDatabse := os.Getenv("MYSQL_TEST_DATABASE")
-	if cfg.MySQL.User == "" || dbPassword == "" || cfg.MySQL.Host == "" || cfg.MySQL.Port == "" || dbTestDatabse == "" {
+func buildTestMySQLDSN(cfg *config.Config, dbPassword string) (string, error) {
+	testDatabase := os.Getenv("MYSQL_TEST_DATABASE")
+	if cfg.MySQL.User == "" || dbPassword == "" || cfg.MySQL.Host == "" || cfg.MySQL.Port == "" || testDatabase == "" {
 		return "", fmt.Errorf("database config missing")
 	}
 
@@ -50,12 +50,12 @@ func buildTestDSN(cfg *config.Config, dbPassword string) (string, error) {
 		dbPassword,
 		cfg.MySQL.Host,
 		cfg.MySQL.Port,
-		dbTestDatabse,
+		testDatabase,
 	), nil
 }
 
-func InitTestDB(cfg *config.Config) (*gorm.DB, error) {
-	dsn, err := buildTestDSN(cfg, os.Getenv("MYSQL_TEST_PASSWORD"))
+func InitTestMySQL(cfg *config.Config) (*gorm.DB, error) {
+	dsn, err := buildTestMySQLDSN(cfg, os.Getenv("MYSQL_TEST_PASSWORD"))
 	if err != nil {
 		return nil, err
 	}

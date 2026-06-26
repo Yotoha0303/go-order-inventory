@@ -7,7 +7,7 @@ import (
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/service"
 	"go-order-inventory/pkg/database"
-	"log"
+	"os"
 	"testing"
 
 	"github.com/joho/godotenv"
@@ -17,21 +17,32 @@ import (
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
+	if os.Getenv("RUN_MYSQL_TEST") != "1" {
+		t.Skip("skip MySQL integration test; set RUN_MYSQL_TEST=1 to run")
+	}
+
 	_ = godotenv.Load("../../.env")
 
 	cfg, err := config.LoadConfig("../../config.yml")
 	if err != nil {
-		log.Fatalf("load config failed:%v", err)
+		t.Fatalf("load config failed: %v", err)
 	}
 
-	testDB, err := database.InitTestDB(cfg)
+	testDB, err := database.InitTestMySQL(cfg)
 	if err != nil {
-		t.Skipf("init test mysql db failed: %v", err)
+		t.Fatalf("init test MySQL failed: %v", err)
 	}
+	t.Cleanup(func() {
+		sqlDB, err := testDB.DB()
+		if err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
 	err = testDB.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}, &model.Order{}, &model.OrderItem{})
 
 	if err != nil {
-		t.Skipf("skip integration test, init test db failed: %v", err)
+		t.Fatalf("migrate test MySQL failed: %v", err)
 	}
 
 	cleanTables(t, testDB)

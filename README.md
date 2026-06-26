@@ -20,7 +20,7 @@
 - HTTP Server 设置 ReadTimeout、WriteTimeout、IdleTimeout、ReadHeaderTimeout 和 MaxHeaderBytes
 - MySQL 初始化时配置连接池：MaxOpenConns、MaxIdleConns、ConnMaxLifetime、ConnMaxIdleTime
 - 启动时使用 PingContext 检查 MySQL 连通性
-- 路由层使用 Request ID、Access Log、Timeout Middleware 和 Recovery
+- 请求层使用 Request ID、Access Log 和 Recovery；HTTP Server 外层强制请求超时，向下游传递 deadline，超时返回 `503 / 5002` 并隔离后续响应写入
 - Redis 不可用时商品详情缓存自动降级，不影响主流程
 - CI 覆盖 go test、go test -race、go vet、golangci-lint、goose validate 和 go build
 - Dockerfile 使用多阶段构建和非 root 用户运行应用
@@ -56,7 +56,8 @@
 未实现，作为后续演进：
 
 - 创建订单 request_id / idempotency_key 幂等控制
-- handler / DAO 层测试与更完整的异常分支覆盖
+- 除健康检查外的 handler 业务接口测试、DAO 层测试与更完整的异常分支覆盖
+- 并发下单防超卖测试，以及多商品下单中途失败后的事务完整回滚测试
 - 自动迁移或独立 migration job，进一步简化首次启动流程
 
 ## 4. 核心功能
@@ -403,6 +404,21 @@ curl http://localhost:8082/ping
 
 service 测试会清理所连接数据库中的业务表。必须使用独立测试库，禁止将 `DB_NAME` 指向含有开发数据或生产数据的数据库。
 
+### 16.1 自动化测试覆盖现状
+
+| 测试项 | 当前状态 | 检查结论 |
+| --- | --- | --- |
+| 核心业务测试 | 已有 | `internal/service/*_test.go` 已覆盖商品、库存、订单创建和订单状态机；另有健康检查 handler 测试与 Redis 缓存测试 |
+| 并发下单测试 | 待补充 | 当前没有多个 goroutine 同时购买同一商品并校验成功订单数、最终库存和防超卖结果的测试 |
+| 创建订单事务回滚测试 | 部分覆盖 | `TestCreateOrder_InsufficientStock` 已校验库存不足错误，但没有构造“前一商品已扣减、后一商品失败”的场景，也没有断言订单、订单项、库存和库存流水全部回滚 |
+
+取消待支付订单后的库存恢复已有 `TestCancelOrder_Success` 和重复取消幂等测试覆盖；这是取消业务的库存补偿，不等同于创建订单失败时的数据库事务回滚测试。
+
+建议补充的用例名称：
+
+- `TestCreateOrder_ConcurrentStock_NoOversell`
+- `TestCreateOrder_RollbackWhenLaterItemInsufficient`
+
 假设已创建 `go_order_inventory_test`：
 
 ```powershell
@@ -459,7 +475,7 @@ Redis 集成测试前需保证 Redis 已启动，可先执行 `make infra-up`。
 
 - 使用 handler / service / dao / model 分层组织代码，避免业务逻辑散落在接口层
 - 创建订单使用事务保证 orders、order_items、product_inventories、stock_logs 多表一致性
-- 库存扣减使用库存行锁 + 条件更新，避免库存不足时继续扣减
+- 库存扣减使用库存行锁 + 条件更新，避免库存不足时继续扣减；并发防超卖效果仍待专门的并发测试验证
 - order_items 保存商品名称和价格快照，避免商品后续修改影响历史订单
 - stock_logs 记录库存变更前后数量、业务类型和业务 ID，便于排查库存异常
 - 订单状态机限制待支付、已支付、已完成、已取消之间的非法流转
@@ -474,7 +490,9 @@ Redis 集成测试前需保证 Redis 已启动，可先执行 `make infra-up`。
 
 ## 19. 后续演进方向
 
-- 增加 handler / DAO 测试，并完善 service 异常与并发分支覆盖
+- 增加 handler 业务接口测试和 DAO 测试
+- 增加同一商品并发下单测试，验证不超卖、成功订单数和最终库存一致
+- 增加多商品下单中途失败测试，验证订单、订单项、库存和库存流水整体回滚
 - 在 Compose 或部署流水线中加入独立 migration job
 - 增加指标、链路追踪和结构化日志字段规范
 - 优化错误码文档和接口返回示例

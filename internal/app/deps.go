@@ -57,7 +57,7 @@ func InitDeps(logger *slog.Logger) (*Deps, error) {
 		Health:    handler.NewHealthHandler(db),
 	}
 
-	r := router.SetupRouters(logger, cfg.HttpServer.Server.Timeout, handlers)
+	r := router.SetupRouters(logger, handlers)
 
 	return &Deps{
 		Config:      cfg,

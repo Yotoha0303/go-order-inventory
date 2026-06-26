@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -16,11 +17,7 @@ type RequestIDContextKey = struct{}
 
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		requestID := c.GetHeader(RequestIDHeader)
-
-		if requestID == "" {
-			requestID = uuid.NewString()
-		}
+		requestID := ensureRequestID(c.Request)
 
 		c.Set(RequestKeyID, requestID)
 
@@ -36,6 +33,15 @@ func RequestID() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func ensureRequestID(r *http.Request) string {
+	requestID := r.Header.Get(RequestIDHeader)
+	if requestID == "" {
+		requestID = uuid.NewString()
+		r.Header.Set(RequestIDHeader, requestID)
+	}
+	return requestID
 }
 
 func GetRequestID(c *gin.Context) string {

@@ -1,26 +1,31 @@
 package middleware
 
 import (
-	"context"
+	"encoding/json"
+	"go-order-inventory/internal/response"
+	"net/http"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
-func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-		if timeout <= 0 {
-			c.Next()
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
-
-		defer cancel()
-
-		c.Request = c.Request.WithContext(ctx)
-
-		c.Next()
+func TimeoutHandler(next http.Handler, timeout time.Duration) http.Handler {
+	if timeout <= 0 {
+		return next
 	}
+
+	body, err := json.Marshal(response.Response{
+		Code: response.CodeRequestTimeout,
+		Msg:  "request timeout",
+	})
+	if err != nil {
+		body = []byte(`{"code":5002,"message":"request timeout"}`)
+	}
+
+	handler := http.TimeoutHandler(next, timeout, string(body))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := ensureRequestID(r)
+		w.Header().Set(RequestIDHeader, requestID)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		handler.ServeHTTP(w, r)
+	})
 }

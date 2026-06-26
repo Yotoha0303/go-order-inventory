@@ -46,4 +46,5 @@ const (
 const (
 	CodeInternalServerError = 5000
 	CodeReadinessFailed     = 5001
+	CodeRequestTimeout      = 5002
 )

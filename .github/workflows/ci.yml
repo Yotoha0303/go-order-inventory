@@ -17,14 +17,39 @@ env:
   GOFLAGS: -mod=readonly
   RUN_MYSQL_TEST: "1"
   RUN_REDIS_TEST: "1"
-  MYSQL_PASSWORD: ci-password
-  DB_NAME: go_order_inventory_test
+  MYSQL_TEST_PASSWORD: ci-password
+  MYSQL_TEST_DATABASE: go_order_inventory_test
   REDIS_ADDR: 127.0.0.1:6379
 
 jobs:
   quality:
     name: Test, Vet, Validate, Build
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-password
+          MYSQL_DATABASE: go_order_inventory_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+          --health-start-period=20s
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout code

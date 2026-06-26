@@ -7,7 +7,7 @@ GOLANGCI_LINT ?= golangci-lint
 COMPOSE ?= docker compose
 GOOSE ?= goose
 PACKAGES := ./...
-TEST_FLAGS ?=
+TEST_FLAGS ?= -count=1
 LINT_FLAGS ?=
 MIGRATIONS_DIR ?= migrations
 DB_HOST ?= 127.0.0.1
@@ -49,9 +49,9 @@ help:
 	@echo Tests:
 	@echo   test            Run all tests
 	@echo   test-verbose    Run all tests with verbose output
-	@echo   test-service    Run service tests
+	@echo   test-service    Run MySQL service integration tests
 	@echo   test-redis      Run Redis integration tests
-	@echo   test-all        Run all tests, including Redis integration tests
+	@echo   test-all        Run all tests, including MySQL and Redis integration tests
 	@echo   test-race       Run all tests with the race detector
 	@echo   coverage        Generate coverage.out
 	@echo   coverage-html   Generate coverage.html
@@ -131,6 +131,7 @@ test:
 test-verbose:
 	$(GO) test -v $(TEST_FLAGS) $(PACKAGES)
 
+test-service: export RUN_MYSQL_TEST := 1
 test-service:
 	$(GO) test -v $(TEST_FLAGS) ./internal/service
 
@@ -138,7 +139,7 @@ test-redis: export RUN_REDIS_TEST := 1
 test-redis:
 	$(GO) test -v $(TEST_FLAGS) ./internal/bizcache
 
-test-all: test test-redis
+test-all: test test-service test-redis
 
 test-race:
 	$(GO) test -race $(TEST_FLAGS) $(PACKAGES)

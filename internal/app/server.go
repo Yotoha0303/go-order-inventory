@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"go-order-inventory/internal/middleware"
 	"net/http"
 )
 
@@ -10,7 +11,7 @@ func NewHTTPServer(deps *Deps) *http.Server {
 
 	return &http.Server{
 		Addr:              fmt.Sprintf(":%d", deps.Config.Server.Port),
-		Handler:           deps.Router,
+		Handler:           middleware.TimeoutHandler(deps.Router, cfg.Timeout),
 		ReadTimeout:       cfg.ReadTimeOut,
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,

@@ -4,7 +4,6 @@ import (
 	"go-order-inventory/internal/handler"
 	"go-order-inventory/internal/middleware"
 	"log/slog"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,13 +16,12 @@ type Handlers struct {
 	Health    *handler.HealthHandler
 }
 
-func SetupRouters(logger *slog.Logger, timeout time.Duration, handlers Handlers) *gin.Engine {
+func SetupRouters(logger *slog.Logger, handlers Handlers) *gin.Engine {
 	r := gin.New()
 
 	r.Use(
 		middleware.RequestID(),
 		middleware.AccessLog(logger),
-		middleware.TimeoutMiddleware(timeout),
 		middleware.Recovery(logger),
 	)
 

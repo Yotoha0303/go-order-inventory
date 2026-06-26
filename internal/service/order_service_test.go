@@ -6,6 +6,7 @@ import (
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
 	"go-order-inventory/internal/service"
+	"sync"
 	"testing"
 
 	"gorm.io/gorm"
@@ -393,6 +394,82 @@ func TestCancelOrder_CancelledOrder_Idempotent(t *testing.T) {
 	}
 	if orderAfterSecondCancel.CancelledAt == nil {
 		t.Fatalf("expected cancelled_at not nil after second cancel")
+	}
+
+}
+
+func TestOrder_ConcurrentTesting_OrderOversold(t *testing.T) {
+	const (
+		initialStock = int64(10)
+		requests     = 20
+	)
+
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "test concurrent testing order", 100, model.ProductStatusOnSale)
+
+	seedInventory(t, testDB, product.ID, initialStock)
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errCh := make(chan error, requests)
+
+	for i := 0; i < requests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+
+			_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+				Items: []request.CreateOrderItemRequest{
+					{
+						ProductID: product.ID,
+						Quantity:  1,
+					},
+				},
+			})
+			errCh <- err
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errCh)
+
+	var successCount, failedCount int64
+	for err := range errCh {
+		if err == nil {
+			successCount++
+			continue
+		}
+		if !errors.Is(err, service.ErrInsufficientStock) {
+			t.Fatalf("expected ErrInsufficientStock, got %v", err)
+		}
+		failedCount++
+	}
+
+	if successCount != initialStock {
+		t.Fatalf("expected success count %d, got %d", initialStock, successCount)
+	}
+	if failedCount != requests-initialStock {
+		t.Fatalf("expected failed count %d, got %d", requests-initialStock, failedCount)
+	}
+
+	var stockLogCount int64
+	if err := testDB.Model(&model.StockLog{}).Where("product_id = ? AND biz_type = ?", product.ID, model.StockBizOrderDeduct).Count(&stockLogCount).Error; err != nil {
+		t.Fatalf("count stock logs failed: %v", err)
+	}
+
+	if stockLogCount != initialStock {
+		t.Fatalf("expected stock log count %d,got %d", initialStock, failedCount)
+	}
+
+	var inventoryFinaly model.Inventory
+	if err := testDB.Where("product_id = ?", product.ID).First(&inventoryFinaly).Error; err != nil {
+		t.Fatalf("query inventory failed:%v", err)
+	}
+
+	if inventoryFinaly.StockQuantity != 0 {
+		t.Fatalf("expected inventory quantity is 0,got %d", inventoryFinaly.StockQuantity)
 	}
 
 }
