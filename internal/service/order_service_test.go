@@ -33,6 +33,106 @@ func TestCreateOrder_InsufficientStock(t *testing.T) {
 	}
 }
 
+func TestCreateOrder_ProductNotFound(t *testing.T) {
+	_, orderSvc := newOrderService(t)
+
+	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: 999999, Quantity: 1},
+		},
+	})
+	if !errors.Is(err, service.ErrProductNotFound) {
+		t.Fatalf("expected ErrProductNotFound, got %v", err)
+	}
+}
+
+func TestCreateOrder_ProductOffSale(t *testing.T) {
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "off-sale-product", 100, model.ProductStatusOffSale)
+	seedInventory(t, testDB, product.ID, 10)
+
+	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: 1},
+		},
+	})
+	if !errors.Is(err, service.ErrProductOffSale) {
+		t.Fatalf("expected ErrProductOffSale, got %v", err)
+	}
+}
+
+func TestCreateOrder_InventoryNotFound(t *testing.T) {
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "no-inventory-product", 100, model.ProductStatusOnSale)
+
+	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: 1},
+		},
+	})
+	if !errors.Is(err, service.ErrInventoryNotFound) {
+		t.Fatalf("expected ErrInventoryNotFound, got %v", err)
+	}
+}
+
+func TestCreateOrder_MultipleItemsSecondInsufficient_Rollback(t *testing.T) {
+	testDB, orderSvc := newOrderService(t)
+	productA := seedProduct(t, testDB, "rollback-product-a", 100, model.ProductStatusOnSale)
+	productB := seedProduct(t, testDB, "rollback-product-b", 200, model.ProductStatusOnSale)
+	seedInventory(t, testDB, productA.ID, 10)
+	seedInventory(t, testDB, productB.ID, 1)
+
+	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: productA.ID, Quantity: 3},
+			{ProductID: productB.ID, Quantity: 2},
+		},
+	})
+	if !errors.Is(err, service.ErrInsufficientStock) {
+		t.Fatalf("expected ErrInsufficientStock, got %v", err)
+	}
+
+	var invA model.Inventory
+	if err := testDB.Where("product_id = ?", productA.ID).First(&invA).Error; err != nil {
+		t.Fatalf("query product A inventory failed: %v", err)
+	}
+	if invA.StockQuantity != 10 {
+		t.Fatalf("expected product A inventory rolled back to 10, got %d", invA.StockQuantity)
+	}
+
+	var invB model.Inventory
+	if err := testDB.Where("product_id = ?", productB.ID).First(&invB).Error; err != nil {
+		t.Fatalf("query product B inventory failed: %v", err)
+	}
+	if invB.StockQuantity != 1 {
+		t.Fatalf("expected product B inventory unchanged as 1, got %d", invB.StockQuantity)
+	}
+
+	var orderCount int64
+	if err := testDB.Model(&model.Order{}).Count(&orderCount).Error; err != nil {
+		t.Fatalf("count orders failed: %v", err)
+	}
+	if orderCount != 0 {
+		t.Fatalf("expected no order committed after rollback, got %d", orderCount)
+	}
+
+	var orderItemCount int64
+	if err := testDB.Model(&model.OrderItem{}).Count(&orderItemCount).Error; err != nil {
+		t.Fatalf("count order items failed: %v", err)
+	}
+	if orderItemCount != 0 {
+		t.Fatalf("expected no order item committed after rollback, got %d", orderItemCount)
+	}
+
+	var stockLogCount int64
+	if err := testDB.Model(&model.StockLog{}).Count(&stockLogCount).Error; err != nil {
+		t.Fatalf("count stock logs failed: %v", err)
+	}
+	if stockLogCount != 0 {
+		t.Fatalf("expected no stock log committed after rollback, got %d", stockLogCount)
+	}
+}
+
 func TestCreateOrder_Success(t *testing.T) {
 	testDB, orderSvc := newOrderService(t)
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
@@ -460,7 +560,7 @@ func TestOrder_ConcurrentTesting_OrderOversold(t *testing.T) {
 	}
 
 	if stockLogCount != initialStock {
-		t.Fatalf("expected stock log count %d,got %d", initialStock, failedCount)
+		t.Fatalf("expected stock log count %d,got %d", initialStock, stockLogCount)
 	}
 
 	var inventoryFinaly model.Inventory
@@ -472,4 +572,334 @@ func TestOrder_ConcurrentTesting_OrderOversold(t *testing.T) {
 		t.Fatalf("expected inventory quantity is 0,got %d", inventoryFinaly.StockQuantity)
 	}
 
+}
+
+func TestOrder_ConcurrentPurchaseMultipleQuantity_NoOversold(t *testing.T) {
+	const (
+		initialStock   = int64(10)
+		deductQuantity = int64(3)
+		requests       = int64(5)
+	)
+
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "test concurrent purchase multiple quantity", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, product.ID, initialStock)
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errCh := make(chan error, requests)
+
+	for i := int64(0); i < requests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+
+			_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+				Items: []request.CreateOrderItemRequest{
+					{
+						ProductID: product.ID,
+						Quantity:  deductQuantity,
+					},
+				},
+			})
+			errCh <- err
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errCh)
+
+	var successCount, failedCount int64
+	for err := range errCh {
+		if err == nil {
+			successCount++
+			continue
+		}
+		if !errors.Is(err, service.ErrInsufficientStock) {
+			t.Fatalf("expected ErrInsufficientStock, got %v", err)
+		}
+		failedCount++
+	}
+
+	expectedSuccess := initialStock / deductQuantity
+	if requests < expectedSuccess {
+		expectedSuccess = requests
+	}
+	expectedFailed := requests - expectedSuccess
+	expectedRemaining := initialStock - expectedSuccess*deductQuantity
+
+	if successCount != expectedSuccess {
+		t.Fatalf("expected success count %d, got %d", expectedSuccess, successCount)
+	}
+	if failedCount != expectedFailed {
+		t.Fatalf("expected failed count %d, got %d", expectedFailed, failedCount)
+	}
+
+	var stockLogCount int64
+	if err := testDB.Model(&model.StockLog{}).Where("product_id = ? AND biz_type = ?", product.ID, model.StockBizOrderDeduct).Count(&stockLogCount).Error; err != nil {
+		t.Fatalf("count stock logs failed: %v", err)
+	}
+
+	if stockLogCount != expectedSuccess {
+		t.Fatalf("expected stock log count %d, got %d", expectedSuccess, stockLogCount)
+	}
+
+	var inventoryFinally model.Inventory
+	if err := testDB.Where("product_id = ?", product.ID).First(&inventoryFinally).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+
+	if inventoryFinally.StockQuantity != expectedRemaining {
+		t.Fatalf("expected inventory quantity is %d, got %d", expectedRemaining, inventoryFinally.StockQuantity)
+	}
+}
+
+func TestOrder_ConcurrentTestingCancelToAssignOrder(t *testing.T) {
+	const (
+		initialStock   = int64(10)
+		deductQuantity = int64(10)
+		requests       = 5
+	)
+
+	testDB, orderStr := newOrderService(t)
+	product := seedProduct(t, testDB, "test order concurrent testing cancel to assign order", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, product.ID, initialStock)
+
+	order, err := orderStr.CreateOrder(context.Background(), request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{
+				ProductID: product.ID,
+				Quantity:  deductQuantity,
+			},
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("expected create order success, got %v", err)
+	}
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errCh := make(chan error, requests)
+
+	for i := 0; i < requests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			errCh <- orderStr.CancelOrder(context.Background(), order.ID)
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errCh)
+
+	var successCount int64
+	for err := range errCh {
+		if err == nil {
+			successCount++
+			continue
+		}
+		if !errors.Is(err, service.ErrOrderCancelFailed) {
+			t.Fatalf("expected nil or ErrOrderCancelFailed, got %v", err)
+		}
+	}
+
+	if successCount == 0 {
+		t.Fatalf("expected at least one cancel request success")
+	}
+
+	var inventory model.Inventory
+	if err := testDB.Where("product_id = ?", product.ID).First(&inventory).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+
+	if inventory.StockQuantity != initialStock {
+		t.Fatalf("expected inventory rollback to %d, got %d", initialStock, inventory.StockQuantity)
+	}
+
+	var stockLogCount int64
+	if err := testDB.Model(&model.StockLog{}).Where("product_id = ? AND biz_type = ?", product.ID, model.StockBizOrderRollback).Count(&stockLogCount).Error; err != nil {
+		t.Fatalf("expected query stock log success, got %v", err)
+	}
+
+	if stockLogCount != 1 {
+		t.Fatalf("expected rollback stock log count is 1, got %d", stockLogCount)
+	}
+
+	var cancelledOrder model.Order
+	if err := testDB.First(&cancelledOrder, order.ID).Error; err != nil {
+		t.Fatalf("query cancelled order failed: %v", err)
+	}
+	if cancelledOrder.Status != model.OrderStatusCancelled {
+		t.Fatalf("expected order status cancelled, got %d", cancelledOrder.Status)
+	}
+	if cancelledOrder.CancelledAt == nil {
+		t.Fatalf("expected cancelled_at not nil")
+	}
+}
+
+func TestOrder_ConcurrentTestingPayingToAssignOrder(t *testing.T) {
+	const requests = int64(5)
+
+	testDB, orderSvc := newOrderService(t)
+	ctx := seedPendingOrderContext(t, testDB)
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errCh := make(chan error, requests)
+
+	for i := int64(0); i < requests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			errCh <- orderSvc.PayOrder(context.Background(), ctx.Order.ID)
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errCh)
+
+	var successCount, failedCount int64
+	for err := range errCh {
+		if err == nil {
+			successCount++
+			continue
+		}
+		if !errors.Is(err, service.ErrOrderAlreadyPaid) && !errors.Is(err, service.ErrOrderPayFailed) {
+			t.Fatalf("expected ErrOrderAlreadyPaid or ErrOrderPayFailed, got %v", err)
+		}
+		failedCount++
+	}
+
+	if successCount != 1 {
+		t.Fatalf("expected success count 1, got %d", successCount)
+	}
+	if failedCount != requests-1 {
+		t.Fatalf("expected failed count %d, got %d", requests-1, failedCount)
+	}
+
+	var paidOrder model.Order
+	if err := testDB.First(&paidOrder, ctx.Order.ID).Error; err != nil {
+		t.Fatalf("query paid order failed: %v", err)
+	}
+	if paidOrder.Status != model.OrderStatusPaid {
+		t.Fatalf("expected order status paid, got %d", paidOrder.Status)
+	}
+	if paidOrder.PaidAt == nil {
+		t.Fatalf("expected paid_at not nil")
+	}
+
+	var inventory model.Inventory
+	if err := testDB.Where("product_id = ?", ctx.Product.ID).First(&inventory).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+	expectedStock := ctx.InitQty - ctx.OrderQty
+	if inventory.StockQuantity != expectedStock {
+		t.Fatalf("expected inventory unchanged after pay: %d, got %d", expectedStock, inventory.StockQuantity)
+	}
+
+	var stockLogCount int64
+	if err := testDB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ?", ctx.Product.ID, ctx.Order.ID).Count(&stockLogCount).Error; err != nil {
+		t.Fatalf("count stock logs failed: %v", err)
+	}
+	if stockLogCount != 1 {
+		t.Fatalf("expected stock log count unchanged after pay: 1, got %d", stockLogCount)
+	}
+}
+
+func TestOrder_ConcurrentPayAndCancel_OnlyOneFinalState(t *testing.T) {
+	testDB, orderSvc := newOrderService(t)
+	ctx := seedPendingOrderContext(t, testDB)
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+
+	var payErr error
+	var cancelErr error
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		<-start
+		payErr = orderSvc.PayOrder(context.Background(), ctx.Order.ID)
+	}()
+	go func() {
+		defer wg.Done()
+		<-start
+		cancelErr = orderSvc.CancelOrder(context.Background(), ctx.Order.ID)
+	}()
+
+	close(start)
+	wg.Wait()
+
+	if payErr != nil && !errors.Is(payErr, service.ErrOrderAlreadyCanceled) && !errors.Is(payErr, service.ErrOrderPayFailed) {
+		t.Fatalf("unexpected pay error: %v", payErr)
+	}
+	if cancelErr != nil && !errors.Is(cancelErr, service.ErrOrderAlreadyPaid) && !errors.Is(cancelErr, service.ErrOrderCancelFailed) {
+		t.Fatalf("unexpected cancel error: %v", cancelErr)
+	}
+
+	successCount := 0
+	if payErr == nil {
+		successCount++
+	}
+	if cancelErr == nil {
+		successCount++
+	}
+	if successCount != 1 {
+		t.Fatalf("expected exactly one of pay or cancel to succeed, payErr=%v cancelErr=%v", payErr, cancelErr)
+	}
+
+	var got model.Order
+	if err := testDB.First(&got, ctx.Order.ID).Error; err != nil {
+		t.Fatalf("query order failed: %v", err)
+	}
+
+	var inventory model.Inventory
+	if err := testDB.Where("product_id = ?", ctx.Product.ID).First(&inventory).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+
+	var rollbackLogCount int64
+	if err := testDB.Model(&model.StockLog{}).Where("product_id = ? AND biz_id = ? AND biz_type = ?", ctx.Product.ID, ctx.Order.ID, model.StockBizOrderRollback).Count(&rollbackLogCount).Error; err != nil {
+		t.Fatalf("count rollback stock logs failed: %v", err)
+	}
+
+	switch got.Status {
+	case model.OrderStatusPaid:
+		if got.PaidAt == nil {
+			t.Fatalf("expected paid_at not nil when final status is paid")
+		}
+		if got.CancelledAt != nil {
+			t.Fatalf("expected cancelled_at nil when final status is paid")
+		}
+		expectedStock := ctx.InitQty - ctx.OrderQty
+		if inventory.StockQuantity != expectedStock {
+			t.Fatalf("expected stock remain deducted as %d when paid wins, got %d", expectedStock, inventory.StockQuantity)
+		}
+		if rollbackLogCount != 0 {
+			t.Fatalf("expected no rollback log when paid wins, got %d", rollbackLogCount)
+		}
+	case model.OrderStatusCancelled:
+		if got.CancelledAt == nil {
+			t.Fatalf("expected cancelled_at not nil when final status is cancelled")
+		}
+		if got.PaidAt != nil {
+			t.Fatalf("expected paid_at nil when final status is cancelled")
+		}
+		if inventory.StockQuantity != ctx.InitQty {
+			t.Fatalf("expected stock rollback to %d when cancel wins, got %d", ctx.InitQty, inventory.StockQuantity)
+		}
+		if rollbackLogCount != 1 {
+			t.Fatalf("expected one rollback log when cancel wins, got %d", rollbackLogCount)
+		}
+	default:
+		t.Fatalf("expected final status paid or cancelled, got %d", got.Status)
+	}
 }
