@@ -2,7 +2,13 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"sort"
+	"strings"
+
 	"go-order-inventory/internal/dao"
 	"go-order-inventory/internal/model"
 	"go-order-inventory/internal/request"
@@ -14,19 +20,54 @@ import (
 const orderNoPrefix = "ORD"
 
 func (p *OrderService) CreateOrder(ctx context.Context, req request.CreateOrderRequest) (*model.Order, error) {
+	if strings.TrimSpace(req.IdempotencyKey) == "" || len(req.IdempotencyKey) > 128 {
+		return nil, ErrInvalidIdempotencyKey
+	}
+
+	requestHash, err := buildCreateOrderRequestHash(req)
+	if err != nil {
+		return nil, err
+	}
+
 	var createOrder *model.Order
+	err = p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		acquired, err := dao.TryCreateOrderIdempotencyKey(tx, ctx, req.IdempotencyKey, requestHash)
+		if err != nil {
+			return err
+		}
+		if !acquired {
+			record, err := dao.GetOrderIdempotencyKey(tx, ctx, req.IdempotencyKey)
+			if err != nil {
+				return err
+			}
+			if record.RequestHash != requestHash {
+				return ErrOrderIdempotencyConflict
+			}
 
-	err := p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var totalAmountFen int64 = 0
+			switch record.Status {
+			case model.OrderAlreadyCreated:
+				if record.OrderID == nil || *record.OrderID <= 0 {
+					return ErrOrderIdempotencyStateInvalid
+				}
 
-		orderNo := generateOrderNo()
+				createOrder, err = dao.GetOrderByID(ctx, tx, *record.OrderID)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return ErrOrderIdempotencyStateInvalid
+				}
+				return err
+			case model.OrderBeingCreated:
+				return ErrOrderBeingCreated
+			default:
+				return ErrOrderIdempotencyStateInvalid
+			}
+		}
 
+		var totalAmountFen int64
 		order := &model.Order{
-			OrderNo:        orderNo,
+			OrderNo:        generateOrderNo(),
 			TotalAmountFen: 0,
 			Status:         model.OrderStatusPending,
 		}
-
 		if err := dao.CreateOrder(ctx, tx, order); err != nil {
 			return err
 		}
@@ -39,7 +80,6 @@ func (p *OrderService) CreateOrder(ctx context.Context, req request.CreateOrderR
 				}
 				return err
 			}
-
 			if product.Status != model.ProductStatusOnSale {
 				return ErrProductOffSale
 			}
@@ -54,7 +94,6 @@ func (p *OrderService) CreateOrder(ctx context.Context, req request.CreateOrderR
 
 			beforeQuantity := inv.StockQuantity
 			afterQuantity := beforeQuantity - itemReq.Quantity
-
 			if afterQuantity < 0 {
 				return ErrInsufficientStock
 			}
@@ -78,7 +117,6 @@ func (p *OrderService) CreateOrder(ctx context.Context, req request.CreateOrderR
 				Quantity:        itemReq.Quantity,
 				SubtotalFen:     subtotalFen,
 			}
-
 			if err := dao.CreateOrderItems(ctx, tx, orderItem); err != nil {
 				return err
 			}
@@ -101,17 +139,46 @@ func (p *OrderService) CreateOrder(ctx context.Context, req request.CreateOrderR
 			return err
 		}
 
+		rowsAffected, err := dao.CompleteOrderIdempotencyKey(tx, ctx, req.IdempotencyKey, order.ID)
+		if err != nil || rowsAffected != 1 {
+			return ErrOrderIdempotencyStateInvalid
+		}
+
 		order.TotalAmountFen = totalAmountFen
 		createOrder = order
-
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
 
 	return createOrder, nil
+}
+
+func buildCreateOrderRequestHash(req request.CreateOrderRequest) (string, error) {
+	items := append([]request.CreateOrderItemRequest(nil), req.Items...)
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].ProductID == items[j].ProductID {
+			return items[i].Quantity < items[j].Quantity
+		}
+		return items[i].ProductID < items[j].ProductID
+	})
+
+	payload := struct {
+		Version int                              `json:"version"`
+		Items   []request.CreateOrderItemRequest `json:"items"`
+	}{
+		Version: 1,
+		Items:   items,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:]), nil
 }
 
 func generateOrderNo() string {

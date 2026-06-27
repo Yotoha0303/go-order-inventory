@@ -1,4 +1,4 @@
-﻿# 项目测试说明
+# 项目测试说明
 
 ## 1. 测试目的
 
@@ -87,6 +87,10 @@ docs/http/redis.http
 - [x] 创建订单成功后 `order_items` 有记录
 - [x] 创建订单成功后 `product_inventories` 库存扣减
 - [x] 创建订单成功后 `stock_logs` 有 `biz_type = 3` 记录
+- [x] 相同 idempotency_key 和相同请求返回同一订单
+- [x] 相同 idempotency_key 和不同请求返回冲突
+- [x] 并发使用相同 idempotency_key 只创建一笔订单
+- [x] 创建失败时幂等记录随事务回滚，允许重试
 
 支付订单
 

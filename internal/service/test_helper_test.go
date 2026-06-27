@@ -10,9 +10,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
+
+func newIdempotencyKey() string {
+	return uuid.NewString()
+}
 
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -39,7 +44,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		}
 	})
 
-	err = testDB.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}, &model.Order{}, &model.OrderItem{})
+	err = testDB.AutoMigrate(&model.Product{}, &model.Inventory{}, &model.StockLog{}, &model.Order{}, &model.OrderItem{}, &model.OrderIdempotencyKey{})
 
 	if err != nil {
 		t.Fatalf("migrate test MySQL failed: %v", err)
@@ -54,6 +59,7 @@ func cleanTables(t *testing.T, db *gorm.DB) {
 	t.Helper()
 
 	tables := []string{
+		"order_idempotency_keys",
 		"stock_logs",
 		"order_items",
 		"orders",
@@ -125,6 +131,7 @@ func seedPendingOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 	}
 
 	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID,
 				Quantity: orderQty},
@@ -151,6 +158,7 @@ func seedPaidOrder(t *testing.T, testDB *gorm.DB) *model.Order {
 	seedInventory(t, testDB, product.ID, qty)
 
 	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID, Quantity: orderQty},
 		},
@@ -217,6 +225,7 @@ func seedPendingOrderContext(t *testing.T, testDB *gorm.DB) seededOrderContext {
 	}
 
 	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID,
 				Quantity: orderQty},

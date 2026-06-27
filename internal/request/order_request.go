@@ -1,7 +1,8 @@
 package request
 
 type CreateOrderRequest struct {
-	Items []CreateOrderItemRequest `json:"items" binding:"required,min=1,dive"`
+	IdempotencyKey string                   `json:"idempotency_key" binding:"required,max=128"`
+	Items          []CreateOrderItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
 type CreateOrderItemRequest struct {

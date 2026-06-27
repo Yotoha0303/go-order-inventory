@@ -28,19 +28,22 @@ const (
 )
 
 const (
-	CodeInsufficientStock      = 4001
-	CodeCreateOrderFailed      = 4002
-	CodeOrderNotFound          = 4003
-	CodeOrderPayFailed         = 4004
-	CodeOrderFinishFailed      = 4005
-	CodeOrderCancelFailed      = 4006
-	CodeQueryOrderListFailed   = 4007
-	CodeQueryOrderDetailFailed = 4008
-	CodeOrderNotPaid           = 4009
-	CodeOrderAlreadyCanceled   = 4010
-	CodeOrderAlreadyFinished   = 4011
-	CodeOrderAlreadyPaid       = 4012
-	CodeOrderParameterError    = 4013
+	CodeInsufficientStock          = 4001
+	CodeCreateOrderFailed          = 4002
+	CodeOrderNotFound              = 4003
+	CodeOrderPayFailed             = 4004
+	CodeOrderFinishFailed          = 4005
+	CodeOrderCancelFailed          = 4006
+	CodeQueryOrderListFailed       = 4007
+	CodeQueryOrderDetailFailed     = 4008
+	CodeOrderNotPaid               = 4009
+	CodeOrderAlreadyCanceled       = 4010
+	CodeOrderAlreadyFinished       = 4011
+	CodeOrderAlreadyPaid           = 4012
+	CodeOrderParameterError        = 4013
+	CodeOrderIdempotencyConflict   = 4014
+	CodeOrderBeingCreated          = 4015
+	CodeOrderIdempotencyStateError = 4016
 )
 
 const (

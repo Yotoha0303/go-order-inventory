@@ -11,7 +11,9 @@ import (
 )
 
 var openTestMySQL = func(cfg *config.Config, dsn string) (*gorm.DB, error) {
-	gormDB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	gormDB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		TranslateError: true,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("connect mysql failed: %w", err)
 	}

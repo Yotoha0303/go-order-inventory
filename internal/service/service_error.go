@@ -90,6 +90,29 @@ var (
 	)
 )
 
+var (
+	ErrInvalidIdempotencyKey = apperror.New(
+		http.StatusBadRequest,
+		response.CodeOrderParameterError,
+		"idempotency key 不能为空且长度不能超过 128",
+	)
+	ErrOrderIdempotencyConflict = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderIdempotencyConflict,
+		"相同 idempotency key 不能用于不同的创建订单请求",
+	)
+	ErrOrderBeingCreated = apperror.New(
+		http.StatusConflict,
+		response.CodeOrderBeingCreated,
+		"订单正在创建中",
+	)
+	ErrOrderIdempotencyStateInvalid = apperror.New(
+		http.StatusInternalServerError,
+		response.CodeOrderIdempotencyStateError,
+		"订单幂等记录状态异常",
+	)
+)
+
 // order err
 var (
 	ErrProductOffSale = apperror.New(

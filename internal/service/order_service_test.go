@@ -24,6 +24,7 @@ func TestCreateOrder_InsufficientStock(t *testing.T) {
 	seedInventory(t, testDB, p.ID, 1)
 
 	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: p.ID, Quantity: 2},
 		},
@@ -37,6 +38,7 @@ func TestCreateOrder_ProductNotFound(t *testing.T) {
 	_, orderSvc := newOrderService(t)
 
 	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: 999999, Quantity: 1},
 		},
@@ -52,6 +54,7 @@ func TestCreateOrder_ProductOffSale(t *testing.T) {
 	seedInventory(t, testDB, product.ID, 10)
 
 	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID, Quantity: 1},
 		},
@@ -66,6 +69,7 @@ func TestCreateOrder_InventoryNotFound(t *testing.T) {
 	product := seedProduct(t, testDB, "no-inventory-product", 100, model.ProductStatusOnSale)
 
 	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: product.ID, Quantity: 1},
 		},
@@ -83,6 +87,7 @@ func TestCreateOrder_MultipleItemsSecondInsufficient_Rollback(t *testing.T) {
 	seedInventory(t, testDB, productB.ID, 1)
 
 	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: productA.ID, Quantity: 3},
 			{ProductID: productB.ID, Quantity: 2},
@@ -139,6 +144,7 @@ func TestCreateOrder_Success(t *testing.T) {
 	seedInventory(t, testDB, p.ID, 10)
 
 	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: p.ID, Quantity: 3},
 		},
@@ -191,6 +197,7 @@ func TestPayOrder_FromPendingToPaid_Success(t *testing.T) {
 	seedInventory(t, testDB, p.ID, initQuantity)
 
 	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{
 				ProductID: p.ID,
@@ -266,6 +273,7 @@ func TestPayAndFinishOrder_Success(t *testing.T) {
 	p := seedProduct(t, testDB, "p1", 100, model.ProductStatusOnSale)
 	seedInventory(t, testDB, p.ID, 10)
 	order, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{ProductID: p.ID, Quantity: 1},
 		},
@@ -520,6 +528,7 @@ func TestOrder_ConcurrentTesting_OrderOversold(t *testing.T) {
 			<-start
 
 			_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+				IdempotencyKey: newIdempotencyKey(),
 				Items: []request.CreateOrderItemRequest{
 					{
 						ProductID: product.ID,
@@ -596,6 +605,7 @@ func TestOrder_ConcurrentPurchaseMultipleQuantity_NoOversold(t *testing.T) {
 			<-start
 
 			_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+				IdempotencyKey: newIdempotencyKey(),
 				Items: []request.CreateOrderItemRequest{
 					{
 						ProductID: product.ID,
@@ -668,6 +678,7 @@ func TestOrder_ConcurrentTestingCancelToAssignOrder(t *testing.T) {
 	seedInventory(t, testDB, product.ID, initialStock)
 
 	order, err := orderStr.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
 		Items: []request.CreateOrderItemRequest{
 			{
 				ProductID: product.ID,
@@ -901,5 +912,236 @@ func TestOrder_ConcurrentPayAndCancel_OnlyOneFinalState(t *testing.T) {
 		}
 	default:
 		t.Fatalf("expected final status paid or cancelled, got %d", got.Status)
+	}
+}
+
+func TestCreateOrder_IdempotentReplayReturnsSameOrder(t *testing.T) {
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "idempotent-replay-product", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, product.ID, 10)
+
+	req := request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: 2},
+		},
+	}
+
+	first, err := orderSvc.CreateOrder(context.Background(), req)
+	if err != nil {
+		t.Fatalf("first create order failed: %v", err)
+	}
+	second, err := orderSvc.CreateOrder(context.Background(), req)
+	if err != nil {
+		t.Fatalf("idempotent replay failed: %v", err)
+	}
+
+	if second.ID != first.ID || second.OrderNo != first.OrderNo {
+		t.Fatalf("expected replay to return order %d/%s, got %d/%s", first.ID, first.OrderNo, second.ID, second.OrderNo)
+	}
+
+	var orderCount int64
+	if err := testDB.Model(&model.Order{}).Count(&orderCount).Error; err != nil {
+		t.Fatalf("count orders failed: %v", err)
+	}
+	if orderCount != 1 {
+		t.Fatalf("expected one order, got %d", orderCount)
+	}
+
+	var inventory model.Inventory
+	if err := testDB.Where("product_id = ?", product.ID).First(&inventory).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+	if inventory.StockQuantity != 8 {
+		t.Fatalf("expected inventory 8 after replay, got %d", inventory.StockQuantity)
+	}
+
+	var record model.OrderIdempotencyKey
+	if err := testDB.Where("idempotency_key = ?", req.IdempotencyKey).First(&record).Error; err != nil {
+		t.Fatalf("query idempotency record failed: %v", err)
+	}
+	if record.Status != model.OrderAlreadyCreated || record.OrderID == nil || *record.OrderID != first.ID {
+		t.Fatalf("unexpected idempotency record: status=%d order_id=%v", record.Status, record.OrderID)
+	}
+}
+
+func TestCreateOrder_SameIdempotencyKeyDifferentRequest_ReturnsConflict(t *testing.T) {
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "idempotent-conflict-product", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, product.ID, 10)
+	key := newIdempotencyKey()
+
+	first, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: key,
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: 1},
+		},
+	})
+	if err != nil {
+		t.Fatalf("first create order failed: %v", err)
+	}
+
+	_, err = orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		IdempotencyKey: key,
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: 2},
+		},
+	})
+	if !errors.Is(err, service.ErrOrderIdempotencyConflict) {
+		t.Fatalf("expected ErrOrderIdempotencyConflict, got %v", err)
+	}
+
+	var orderCount int64
+	if err := testDB.Model(&model.Order{}).Count(&orderCount).Error; err != nil {
+		t.Fatalf("count orders failed: %v", err)
+	}
+	if orderCount != 1 {
+		t.Fatalf("expected one order after conflict, got %d", orderCount)
+	}
+
+	var inventory model.Inventory
+	if err := testDB.Where("product_id = ?", product.ID).First(&inventory).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+	if inventory.StockQuantity != 9 {
+		t.Fatalf("expected inventory 9 after conflict, got %d", inventory.StockQuantity)
+	}
+	if first.ID == 0 {
+		t.Fatal("expected first order ID to be assigned")
+	}
+}
+
+func TestCreateOrder_ConcurrentSameIdempotencyKey_CreatesOneOrder(t *testing.T) {
+	const requests = 12
+
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "concurrent-idempotent-product", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, product.ID, 10)
+
+	req := request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: 1},
+		},
+	}
+
+	type result struct {
+		order *model.Order
+		err   error
+	}
+
+	start := make(chan struct{})
+	results := make(chan result, requests)
+	var wg sync.WaitGroup
+	for i := 0; i < requests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			order, err := orderSvc.CreateOrder(context.Background(), req)
+			results <- result{order: order, err: err}
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(results)
+
+	var orderID int64
+	for result := range results {
+		if result.err != nil {
+			t.Fatalf("concurrent idempotent create failed: %v", result.err)
+		}
+		if result.order == nil {
+			t.Fatal("concurrent idempotent create returned nil order")
+		}
+		if orderID == 0 {
+			orderID = result.order.ID
+			continue
+		}
+		if result.order.ID != orderID {
+			t.Fatalf("expected order ID %d, got %d", orderID, result.order.ID)
+		}
+	}
+
+	var orderCount int64
+	if err := testDB.Model(&model.Order{}).Count(&orderCount).Error; err != nil {
+		t.Fatalf("count orders failed: %v", err)
+	}
+	if orderCount != 1 {
+		t.Fatalf("expected one order, got %d", orderCount)
+	}
+
+	var stockLogCount int64
+	if err := testDB.Model(&model.StockLog{}).
+		Where("product_id = ? AND biz_type = ?", product.ID, model.StockBizOrderDeduct).
+		Count(&stockLogCount).Error; err != nil {
+		t.Fatalf("count stock logs failed: %v", err)
+	}
+	if stockLogCount != 1 {
+		t.Fatalf("expected one stock log, got %d", stockLogCount)
+	}
+
+	var inventory model.Inventory
+	if err := testDB.Where("product_id = ?", product.ID).First(&inventory).Error; err != nil {
+		t.Fatalf("query inventory failed: %v", err)
+	}
+	if inventory.StockQuantity != 9 {
+		t.Fatalf("expected inventory 9, got %d", inventory.StockQuantity)
+	}
+}
+
+func TestCreateOrder_FailedAttemptRollsBackIdempotencyKey(t *testing.T) {
+	testDB, orderSvc := newOrderService(t)
+	product := seedProduct(t, testDB, "idempotent-retry-product", 100, model.ProductStatusOnSale)
+	seedInventory(t, testDB, product.ID, 1)
+
+	req := request.CreateOrderRequest{
+		IdempotencyKey: newIdempotencyKey(),
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: product.ID, Quantity: 2},
+		},
+	}
+
+	_, err := orderSvc.CreateOrder(context.Background(), req)
+	if !errors.Is(err, service.ErrInsufficientStock) {
+		t.Fatalf("expected ErrInsufficientStock, got %v", err)
+	}
+
+	var recordCount int64
+	if err := testDB.Model(&model.OrderIdempotencyKey{}).
+		Where("idempotency_key = ?", req.IdempotencyKey).
+		Count(&recordCount).Error; err != nil {
+		t.Fatalf("count idempotency records failed: %v", err)
+	}
+	if recordCount != 0 {
+		t.Fatalf("expected failed attempt to roll back idempotency key, got %d records", recordCount)
+	}
+
+	if err := testDB.Model(&model.Inventory{}).
+		Where("product_id = ?", product.ID).
+		Update("stock_quantity", 2).Error; err != nil {
+		t.Fatalf("restore inventory failed: %v", err)
+	}
+
+	order, err := orderSvc.CreateOrder(context.Background(), req)
+	if err != nil {
+		t.Fatalf("retry create order failed: %v", err)
+	}
+	if order == nil || order.ID == 0 {
+		t.Fatal("expected retry to create an order")
+	}
+}
+
+func TestCreateOrder_EmptyIdempotencyKey_ReturnsError(t *testing.T) {
+	_, orderSvc := newOrderService(t)
+
+	_, err := orderSvc.CreateOrder(context.Background(), request.CreateOrderRequest{
+		Items: []request.CreateOrderItemRequest{
+			{ProductID: 1, Quantity: 1},
+		},
+	})
+	if !errors.Is(err, service.ErrInvalidIdempotencyKey) {
+		t.Fatalf("expected ErrInvalidIdempotencyKey, got %v", err)
 	}
 }

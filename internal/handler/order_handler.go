@@ -39,6 +39,11 @@ func (p *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	if req.IdempotencyKey == "" {
+		response.Fail(c, http.StatusBadRequest, response.CodeOrderParameterError, "idempotency key 不能为空")
+		return
+	}
+
 	order, err := p.orderService.CreateOrder(c.Request.Context(), req)
 	if err != nil {
 		handleError(c, err, response.CodeCreateOrderFailed, "订单创建失败")

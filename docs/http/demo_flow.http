@@ -1,4 +1,4 @@
-﻿@baseUrl = http://127.0.0.1:8082
+@baseUrl = http://127.0.0.1:8082
 @productId = 1
 @orderId = 1
 
@@ -51,6 +51,7 @@ POST {{baseUrl}}/api/v1/orders
 Content-Type: application/json
 
 {
+  "idempotency_key": "demo-order-{{$guid}}",
   "items": [
     {
       "product_id": {{productId}},

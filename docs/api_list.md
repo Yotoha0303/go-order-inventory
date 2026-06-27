@@ -34,7 +34,7 @@
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | /api/v1/orders | 创建订单 |
+| POST | /api/v1/orders | 创建订单（idempotency_key 幂等） |
 | GET | /api/v1/orders | 查询订单列表 |
 | GET | /api/v1/orders/:id | 查询订单详情 |
 | PATCH | /api/v1/orders/:id/pay | 支付订单 |
