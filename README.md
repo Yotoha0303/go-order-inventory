@@ -4,13 +4,14 @@
 
 ## 1. 项目简介
 
-本项目基于 Go + Gin + GORM + MySQL + Redis 实现，提供商品管理、库存管理、库存流水、订单创建、订单状态流转和商品详情缓存等能力。
+本项目基于 Go + Gin + GORM + MySQL + Redis 实现，提供商品管理、库存管理、库存流水、幂等订单创建、订单状态流转和商品详情缓存等能力。
 
 项目的目标不是堆功能，而是把常见后端工程能力做扎实：
 
 - 清晰的 handler / service / dao / model 分层
 - 统一请求参数校验和响应结构
 - 使用事务保证订单创建和库存扣减一致
+- 使用唯一幂等 Key 和请求摘要避免重复创建订单
 - 使用库存流水追踪每一次库存变化
 - 使用订单状态机限制非法状态流转
 - 通过文档和测试清单支撑项目复盘
@@ -79,7 +80,7 @@
 
 ### 订单模块
 
-- 创建订单
+- 使用 `idempotency_key` 幂等创建订单
 - 查询订单列表
 - 查询订单详情
 - 支付订单
@@ -142,6 +143,7 @@ Makefile                  开发、测试、Docker 和迁移命令入口
 - stock_logs：库存流水表
 - orders：订单主表
 - order_items：订单明细表
+- order_idempotency_keys：订单创建幂等记录表
 
 关键设计点：
 
@@ -151,6 +153,7 @@ Makefile                  开发、测试、Docker 和迁移命令入口
 - stock_logs 记录 before_quantity、change_quantity、after_quantity，便于追踪库存变化
 - orders 使用状态机控制待支付、已支付、已完成、已取消
 - order_items 保存下单时的商品名称和价格快照
+- order_idempotency_keys 通过 idempotency_key 唯一索引仲裁并发请求，并通过 request_hash 检测 Key 复用冲突
 
 详细表结构见：[docs/table_design.md](docs/table_design.md)
 
@@ -192,7 +195,7 @@ Makefile                  开发、测试、Docker 和迁移命令入口
 
 ## 9. 订单创建事务设计
 
-当前项目在订单创建与取消场景中，使用数据库事务保证订单、库存和库存流水一致性，并通过库存行级锁控制并发扣减。
+当前项目在订单创建与取消场景中，使用数据库事务保证幂等记录、订单、订单项、库存和库存流水一致性，并通过库存行级锁控制并发扣减。
 
 ### 订单创建
 
@@ -285,11 +288,27 @@ product:detail:{product_id}
 
 创建订单要求客户端提交 `idempotency_key`，长度不超过 128。服务端对规范化后的订单项计算 SHA-256 请求摘要，并依赖 `order_idempotency_keys.idempotency_key` 唯一索引完成并发仲裁。
 
+请求示例：
+
+```json
+{
+  "idempotency_key": "order-create-20260627-001",
+  "items": [
+    {
+      "product_id": 1,
+      "quantity": 2
+    }
+  ]
+}
+```
+
 - 首次请求获得创建权，在同一事务中创建幂等记录、订单、订单项、库存扣减和库存流水
 - 相同 Key 且请求摘要相同：返回已创建的原订单，不重复扣减库存
 - 相同 Key 但请求摘要不同：返回 HTTP 409 幂等冲突
 - 创建失败：幂等记录随事务回滚，客户端可以使用原 Key 重试
 - 多个并发请求使用相同 Key：数据库只允许一个请求创建订单，其余请求返回同一订单
+
+幂等记录状态：`1` 表示创建中，`2` 表示已创建。创建完成后记录关联 `order_id`；事务失败时幂等记录同步回滚。
 
 增加库存、支付订单和完成订单当前仍不使用请求级幂等 Key；重复调用由各自业务状态规则处理。
 
@@ -353,7 +372,7 @@ make migrate-up
 make run
 ```
 
-首次启动必须执行 `make migrate-up` 建表。之后可用 `make dev` 启动 MySQL、Redis 并运行应用。
+首次启动必须执行 `make migrate-up` 建表，其中 `00006_add_order_idempotency_keys.sql` 创建订单幂等表。之后可用 `make dev` 启动 MySQL、Redis 并运行应用。
 
 ### 15.3 Docker 运行完整服务
 
@@ -408,25 +427,19 @@ service 测试会清理所连接数据库中的业务表。必须使用独立测
 
 | 测试项 | 当前状态 | 检查结论 |
 | --- | --- | --- |
-| 核心业务测试 | 已有 | `internal/service/*_test.go` 已覆盖商品、库存、订单创建和订单状态机；另有健康检查 handler 测试与 Redis 缓存测试 |
-| 并发下单测试 | 待补充 | 当前没有多个 goroutine 同时购买同一商品并校验成功订单数、最终库存和防超卖结果的测试 |
-| 创建订单事务回滚测试 | 部分覆盖 | `TestCreateOrder_InsufficientStock` 已校验库存不足错误，但没有构造“前一商品已扣减、后一商品失败”的场景，也没有断言订单、订单项、库存和库存流水全部回滚 |
-
-取消待支付订单后的库存恢复已有 `TestCancelOrder_Success` 和重复取消幂等测试覆盖；这是取消业务的库存补偿，不等同于创建订单失败时的数据库事务回滚测试。
-
-建议补充的用例名称：
-
-- `TestCreateOrder_ConcurrentStock_NoOversell`
-- `TestCreateOrder_RollbackWhenLaterItemInsufficient`
+| 核心业务测试 | 已有 | `internal/service/*_test.go` 覆盖商品、库存、订单创建、状态机和关键异常分支 |
+| 并发防超卖测试 | 已有 | `TestOrder_ConcurrentTesting_OrderOversold` 和多数量并发测试校验成功数、失败数、最终库存和库存流水 |
+| 多商品事务回滚测试 | 已有 | `TestCreateOrder_MultipleItemsSecondInsufficient_Rollback` 验证第二件商品失败时前序扣减和订单数据全部回滚 |
+| 创建订单幂等测试 | 已有 | 覆盖同 Key 重放、不同请求冲突、并发同 Key 只创建一单、失败回滚后重试和空 Key |
+| 订单状态并发测试 | 已有 | 覆盖并发支付、并发取消以及支付与取消竞争 |
 
 假设已创建 `go_order_inventory_test`：
 
 ```powershell
-$env:MYSQL_PASSWORD = "your-password"
-$env:DB_NAME = "go_order_inventory_test"
+$env:MYSQL_TEST_PASSWORD = "your-password"
+$env:MYSQL_TEST_DATABASE = "go_order_inventory_test"
 
-make migrate-up
-make test
+make test-service
 ```
 
 常用测试和质量命令：
@@ -434,10 +447,10 @@ make test
 | 命令 | 作用 |
 | --- | --- |
 | `make test` | 运行全部 Go 测试 |
-| `make test-service` | 运行 service 测试 |
+| `make test-service` | 设置 `RUN_MYSQL_TEST=1` 并运行 MySQL service 集成测试 |
 | `make test-redis` | 运行 Redis 集成测试 |
-| `make test-all` | 运行普通测试和 Redis 集成测试 |
-| `make test-race` | 使用 race detector 运行测试 |
+| `make test-all` | 运行普通测试、MySQL service 测试和 Redis 集成测试 |
+| `make test-race` | 使用 race detector 运行普通测试；集成测试需要额外设置对应环境变量 |
 | `make coverage` | 生成 `coverage.out` |
 | `make coverage-html` | 生成 `coverage.html` |
 | `make check` | 执行格式化、模块校验、vet 和测试 |
@@ -495,5 +508,5 @@ Redis 集成测试前需保证 Redis 已启动，可先执行 `make infra-up`。
 - 在 Compose 或部署流水线中加入独立 migration job
 - 增加指标、链路追踪和结构化日志字段规范
 - 优化错误码文档和接口返回示例
-- 订单中使用雪花 ID 代替时间戳生成 orderNO
+- 评估使用雪花 ID 替代当前 UUID orderNo
 - 为幂等记录增加过期清理策略，并在引入用户体系后按用户隔离 Key
