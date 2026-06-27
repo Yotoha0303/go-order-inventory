@@ -16,13 +16,8 @@ DB_USER ?= root
 DB_NAME ?= go_order_inventory
 MIGRATION_DSN ?= $(DB_USER):$(MYSQL_PASSWORD)@tcp($(DB_HOST):$(DB_PORT))/$(DB_NAME)?parseTime=true
 
-NULL_DEVICE := /dev/null
-
 ifeq ($(OS),Windows_NT)
 BINARY := $(BIN_DIR)/$(APP_NAME).exe
-ifeq ($(findstring sh,$(notdir $(SHELL))),)
-NULL_DEVICE := NUL
-endif
 else
 BINARY := $(BIN_DIR)/$(APP_NAME)
 endif
@@ -115,7 +110,7 @@ vet:
 
 lint:
 ifeq ($(OS),Windows_NT)
-	@where "$(GOLANGCI_LINT)" >"$(NULL_DEVICE)" 2>&1 || (echo golangci-lint is not installed & exit /B 1)
+	@where "$(GOLANGCI_LINT)" || (echo golangci-lint is not installed && exit 1)
 else
 	@command -v "$(GOLANGCI_LINT)" >/dev/null 2>&1 || { echo "golangci-lint is not installed"; exit 1; }
 endif
@@ -192,7 +187,7 @@ docker-logs:
 
 check-goose:
 ifeq ($(OS),Windows_NT)
-	@where "$(GOOSE)" >"$(NULL_DEVICE)" 2>&1 || (echo goose is not installed. Run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1 & exit /B 1)
+	@where "$(GOOSE)" || (echo goose is not installed. Run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1 && exit 1)
 else
 	@command -v "$(GOOSE)" >/dev/null 2>&1 || { echo "goose is not installed. Run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1"; exit 1; }
 endif
